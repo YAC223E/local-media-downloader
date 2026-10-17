@@ -1,0 +1,16 @@
+{
+  "name": "Local Media Downloader",
+  "short_name": "Media DL",
+  "description": "Fetch videos and audio to your shelf. Fully local, LAN-ready.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#12100c",
+  "theme_color": "#12100c",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

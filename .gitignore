@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.venv/
+data/
+*.db
+*.db-journal
+downloads/*
+!downloads/.gitkeep
+cookies/*
+!cookies/.gitkeep
+archives/*
+!archives/.gitkeep
+settings.json
+frontend/node_modules/
+frontend/dist/
+.impeccable/
