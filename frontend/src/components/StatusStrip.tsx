@@ -9,7 +9,7 @@ export function StatusStrip({ children }: { children: ReactNode }) {
   );
 }
 
-export function EmptyState({ title, body }: { title: string; body: string }) {
+export function EmptyState({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
   return (
     <div className="sleeve rounded-sm px-6 py-12 text-center">
       <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-sm border border-hairline text-muted">
@@ -20,6 +20,7 @@ export function EmptyState({ title, body }: { title: string; body: string }) {
       </div>
       <p className="text-[15px] font-bold text-ink">{title}</p>
       <p className="mx-auto mt-1 max-w-[46ch] text-sm leading-relaxed text-muted">{body}</p>
+      {action && <div className="mt-5 flex justify-center">{action}</div>}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { api, type AppSettings } from "../lib/api";
 import { useTheme, type ThemeMode } from "../lib/theme";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { Select } from "../components/ui/select";
 import { useToast } from "../components/Toaster";
 
 /** Settings grouped by use: Appearance, Quality, Downloads, Subtitles,
@@ -54,16 +55,16 @@ export function Settings({ onSaved }: { onSaved: (s: AppSettings) => void }) {
         <label className="mono mt-3 block text-[11px] uppercase tracking-[0.14em] text-muted" htmlFor="theme">
           Theme
         </label>
-        <select
+        <Select
           id="theme"
           value={mode}
           onChange={(e) => setMode(e.target.value as ThemeMode)}
-          className="mt-1 h-12 w-full rounded-sm border border-hairline bg-panel px-3 text-[15px] text-ink focus:border-amber focus:outline-none"
+          className="mt-1"
         >
           <option value="system">Follow phone / laptop</option>
           <option value="dark">Dark</option>
           <option value="light">Light</option>
-        </select>
+        </Select>
       </section>
 
       <section aria-label="Quality" className="sleeve rounded-sm p-4">
@@ -73,37 +74,37 @@ export function Settings({ onSaved }: { onSaved: (s: AppSettings) => void }) {
             <label className="mono block text-[11px] uppercase tracking-[0.14em] text-muted" htmlFor="quality">
               Video quality
             </label>
-            <select
+            <Select
               id="quality"
               value={s.preferred_quality}
               onChange={(e) => setS({ ...s, preferred_quality: e.target.value })}
-              className="mt-1 h-12 w-full rounded-sm border border-hairline bg-panel px-3 text-[15px] text-ink focus:border-amber focus:outline-none"
+              className="mt-1"
             >
               <option value="best">Best</option>
               <option value="1080">Good (1080p)</option>
               <option value="720">Smaller (720p)</option>
               <option value="480">Smallest (480p)</option>
               <option value="audio">Sound only</option>
-            </select>
+            </Select>
           </div>
           <div>
             <label className="mono block text-[11px] uppercase tracking-[0.14em] text-muted" htmlFor="audioq">
               Sound quality
             </label>
-            <select
+            <Select
               id="audioq"
               value={s.audio_quality}
               onChange={(e) => setS({ ...s, audio_quality: e.target.value })}
-              className="mt-1 h-12 w-full rounded-sm border border-hairline bg-panel px-3 text-[15px] text-ink focus:border-amber focus:outline-none"
+              className="mt-1"
             >
               <option value="320">Best (320k)</option>
               <option value="192">High (192k)</option>
               <option value="128">Standard (128k)</option>
-            </select>
+            </Select>
           </div>
         </div>
         <label className="mt-3 flex cursor-pointer items-center gap-3 text-[15px] text-ink">
-          <input type="checkbox" checked={s.default_to_audio} onChange={(e) => setS({ ...s, default_to_audio: e.target.checked })} className="h-5 w-5 accent-[#f5a524]" />
+          <input type="checkbox" checked={s.default_to_audio} onChange={(e) => setS({ ...s, default_to_audio: e.target.checked })} className="h-5 w-5 accent-amber" />
           Mostly music?
         </label>
       </section>
@@ -131,7 +132,7 @@ export function Settings({ onSaved }: { onSaved: (s: AppSettings) => void }) {
           </div>
         </div>
         <label className="mt-3 flex cursor-pointer items-start gap-3 text-[15px] text-ink">
-          <input type="checkbox" checked={s.auto_delete_after_serve} onChange={(e) => setS({ ...s, auto_delete_after_serve: e.target.checked })} className="mt-1 h-5 w-5 accent-[#f5a524]" />
+          <input type="checkbox" checked={s.auto_delete_after_serve} onChange={(e) => setS({ ...s, auto_delete_after_serve: e.target.checked })} className="mt-1 h-5 w-5 accent-amber" />
           Tidy the laptop after phones save videos
         </label>
       </section>
@@ -141,39 +142,39 @@ export function Settings({ onSaved }: { onSaved: (s: AppSettings) => void }) {
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div>
             <label className="mono block text-[11px] uppercase tracking-[0.14em] text-muted" htmlFor="submode">
-              How
+              Mode
             </label>
-            <select
+            <Select
               id="submode"
               value={s.subtitle_mode}
               onChange={(e) => setS({ ...s, subtitle_mode: e.target.value })}
-              className="mt-1 h-12 w-full rounded-sm border border-hairline bg-panel px-3 text-[15px] text-ink focus:border-amber focus:outline-none"
+              className="mt-1"
             >
               <option value="embed">In the video</option>
               <option value="file">Separate file</option>
               <option value="off">Off</option>
-            </select>
+            </Select>
           </div>
           <div>
             <label className="mono block text-[11px] uppercase tracking-[0.14em] text-muted" htmlFor="sublang">
               Language
             </label>
-            <select
+            <Select
               id="sublang"
               value={s.subtitle_lang}
               onChange={(e) => setS({ ...s, subtitle_lang: e.target.value })}
-              className="mt-1 h-12 w-full rounded-sm border border-hairline bg-panel px-3 text-[15px] text-ink focus:border-amber focus:outline-none"
+              className="mt-1"
             >
               {["en", "fr", "es", "de", "ar", "pt", "it", "nl"].map((l) => (
                 <option key={l} value={l}>
                   {l.toUpperCase()}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
         <label className="mt-3 flex cursor-pointer items-center gap-3 text-sm text-ink">
-          <input type="checkbox" checked={s.subtitle_auto_fallback} onChange={(e) => setS({ ...s, subtitle_auto_fallback: e.target.checked })} className="h-4 w-4 accent-[#f5a524]" />
+          <input type="checkbox" checked={s.subtitle_auto_fallback} onChange={(e) => setS({ ...s, subtitle_auto_fallback: e.target.checked })} className="h-4 w-4 accent-amber" />
           Use auto captions when real ones are missing
         </label>
       </section>
@@ -198,11 +199,11 @@ export function Settings({ onSaved }: { onSaved: (s: AppSettings) => void }) {
         <h2 className="text-[15px] font-bold text-ink">Advanced</h2>
         <div className="mt-3 grid gap-3">
           <label className="flex cursor-pointer items-center gap-3 text-sm text-ink">
-            <input type="checkbox" checked={s.embed_thumbnail} onChange={(e) => setS({ ...s, embed_thumbnail: e.target.checked })} className="h-4 w-4 accent-[#f5a524]" />
+            <input type="checkbox" checked={s.embed_thumbnail} onChange={(e) => setS({ ...s, embed_thumbnail: e.target.checked })} className="h-4 w-4 accent-amber" />
             Put the thumbnail picture inside the file
           </label>
           <label className="flex cursor-pointer items-center gap-3 text-sm text-ink">
-            <input type="checkbox" checked={s.embed_metadata} onChange={(e) => setS({ ...s, embed_metadata: e.target.checked })} className="h-4 w-4 accent-[#f5a524]" />
+            <input type="checkbox" checked={s.embed_metadata} onChange={(e) => setS({ ...s, embed_metadata: e.target.checked })} className="h-4 w-4 accent-amber" />
             Put the title inside the file
           </label>
           <div>

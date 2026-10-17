@@ -16,14 +16,17 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const push = useCallback((t: Omit<Toast, "id">) => {
     const id = Date.now() + Math.random();
-    setToasts((prev) => [...prev.slice(-3), { ...t, id }]);
+    setToasts((prev) => [...prev.slice(-2), { ...t, id }]); // oldest of three leaves as the new one lands
     window.setTimeout(() => setToasts((prev) => prev.filter((x) => x.id !== id)), 4500);
   }, []);
   const value = useMemo(() => push, [push]);
   return (
     <ToastCtx.Provider value={value}>
       {children}
-      <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex w-[min(92vw,360px)] flex-col gap-2" role="status">
+      <div
+        className="pointer-events-none fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+66px)] z-50 flex w-[min(92vw,360px)] flex-col gap-2 md:bottom-4"
+        role="status"
+      >
         {toasts.map((t) => (
           <div
             key={t.id}

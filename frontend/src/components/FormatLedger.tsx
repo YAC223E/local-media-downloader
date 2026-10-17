@@ -3,6 +3,7 @@ import { fmtBytes } from "../lib/format";
 import type { FormatOption } from "../lib/api";
 import { cn } from "../lib/utils";
 import { Button } from "./ui/button";
+import { Select } from "./ui/select";
 
 export interface DownloadExtra {
   audio_quality?: string;
@@ -88,10 +89,13 @@ export function FormatLedger({
           >
             <input
               type="radio"
-              name="quality"
+              // Distinct name from the full list below: with one shared name the
+              // browser lets only one radio of the group paint its own checked
+              // state, so the visible quick rows would never show their dot.
+              name="quick-quality"
               checked={activeId === c.format.format_id}
               onChange={() => setPicked(c.format.format_id)}
-              className="h-5 w-5 shrink-0 accent-[#f5a524]"
+              className="h-5 w-5 shrink-0 accent-amber"
             />
             <span className="min-w-0 flex-1">
               <span className="block text-[15px] font-bold text-ink">{c.title}</span>
@@ -127,11 +131,10 @@ export function FormatLedger({
           <label className="mono block pb-1.5 text-[11px] uppercase tracking-[0.14em] text-muted" htmlFor="sub-lang">
             Subtitles
           </label>
-          <select
+          <Select
             id="sub-lang"
             value={subLang}
             onChange={(e) => setSubLang(e.target.value)}
-            className="h-12 w-full rounded-sm border border-hairline bg-panel px-3 text-[15px] text-ink focus:border-amber focus:outline-none"
           >
             <option value="">No subtitles</option>
             {subOptions.map((o) => (
@@ -140,7 +143,7 @@ export function FormatLedger({
                 {o.auto ? " · auto" : ""}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
       )}
       <div className="px-3 py-3">
@@ -204,17 +207,21 @@ function buildChoices(formats: FormatOption[], preferred: string): Choice[] {
     format: best,
   });
 
-  // Smaller: the lightest combined rendition (faster download, less space).
-  const withSize = pool.filter((f) => f.filesize);
-  const small =
-    (withSize.length ? [...withSize].sort((a, b) => (a.filesize ?? 0) - (b.filesize ?? 0))[0] : pool[pool.length - 1]) ??
-    formats[0];
-  if (small.format_id !== best.format_id) {
-    out.push({
-      key: "small",
-      title: `Smaller${small.resolution ? ` · ${describeRes(small)}` : ""}`,
-      format: small,
-    });
+  // Smaller: the lightest combined rendition when a clearly lighter one exists
+  // (no size data means no claim — better no row than a fake promise).
+  const keyOf = (f: FormatOption): number =>
+    f.filesize ?? (f.tbr ? (f.tbr * 1000) / 8 : Infinity);
+  const sortedLight = [...pool].sort((a, b) => keyOf(a) - keyOf(b));
+  const small = sortedLight[0];
+  if (small && small.format_id !== best.format_id && small.filesize) {
+    const bestSize = best.filesize;
+    if (bestSize == null || small.filesize < bestSize) {
+      out.push({
+        key: "small",
+        title: `Smaller${small.resolution ? ` · ${describeRes(small)}` : ""}`,
+        format: small,
+      });
+    }
   }
 
   // Audio only: first (best) audio rendition.
@@ -242,12 +249,12 @@ function Row({ f, checked, onPick }: { f: FormatOption; checked: boolean; onPick
           checked ? "bg-[var(--wash)]" : "hover:bg-panel2",
         )}
       >
-        <input type="radio" name="quality" checked={checked} onChange={onPick} className="h-4 w-4 accent-[var(--amber)]" />
+        <input type="radio" name="full-quality" checked={checked} onChange={onPick} className="h-4 w-4 accent-amber" />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold text-ink">{f.label}</span>
           <span className="mono block truncate text-[11px] text-muted">
-            {[f.resolution, f.fps ? `${f.fps}fps` : "", f.vcodec !== "none" ? f.vcodec : "", f.acodec !== "none" ? f.acodec : "", f.ext.toUpperCase()]
-              .filter(Boolean)
+            {[f.resolution, f.fps ? `${f.fps}fps` : "", f.vcodec, f.acodec, f.ext.toUpperCase()]
+              .filter((v) => v && v !== "unknown")
               .join(" · ")}
           </span>
         </span>

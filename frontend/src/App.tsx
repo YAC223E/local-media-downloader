@@ -99,7 +99,6 @@ function Shell() {
             <span className="truncate normal-case tracking-normal">LAN · {system.urls.join(" · ")}</span>
           )}
           <span className="ml-auto hidden sm:inline">contact sleeve · {new Date().getFullYear()}</span>
-          <span className="sm:hidden">sleeve</span>
         </StatusStrip>
 
         <header className="flex items-center gap-3 border-b border-hairline px-4 py-3">

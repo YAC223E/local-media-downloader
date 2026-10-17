@@ -7,6 +7,8 @@ const ACTIVE = ["queued", "extracting", "downloading", "merging"];
 interface JobsCtx {
   jobs: JobInfo[];
   activeCount: number;
+  /** True when a downloads fetch completed and failed (server unreachable). */
+  loadFailed: boolean;
   start: (payload: StartPayload) => Promise<JobInfo | null>;
   startPlaylist: (payload: Parameters<typeof api.startPlaylist>[0]) => Promise<JobInfo | null>;
   cancel: (id: string) => Promise<void>;
@@ -20,6 +22,7 @@ export const useJobs = () => useContext(Ctx)!;
 export function JobsProvider({ children }: { children: React.ReactNode }) {
   const toast = useToast();
   const [jobs, setJobs] = useState<JobInfo[]>([]);
+  const [loadFailed, setLoadFailed] = useState(false);
   const mapRef = useRef(new Map<string, JobInfo>());
   const unsubsRef = useRef(new Map<string, () => void>());
 
@@ -32,9 +35,11 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
     try {
       const list = await api.downloads();
       for (const j of list) mapRef.current.set(j.job_id, j);
+      setLoadFailed(false);
       sync();
     } catch {
-      /* offline: keep last known */
+      // Unreachable: keep last known rows and tell the page.
+      setLoadFailed(true);
     }
   }, [sync]);
 
@@ -125,8 +130,8 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
 
   const activeCount = useMemo(() => jobs.filter((j) => ACTIVE.includes(j.status)).length, [jobs]);
   const value = useMemo(
-    () => ({ jobs, activeCount, start, startPlaylist, cancel, refresh }),
-    [jobs, activeCount, start, startPlaylist, cancel, refresh],
+    () => ({ jobs, activeCount, loadFailed, start, startPlaylist, cancel, refresh }),
+    [jobs, activeCount, loadFailed, start, startPlaylist, cancel, refresh],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

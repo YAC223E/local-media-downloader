@@ -1,37 +1,58 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type HistoryItem } from "../lib/api";
-import { fmtBytes } from "../lib/format";
-import { platformKey } from "../lib/format";
+import { fmtBytes, fmtDay, platformKey, plainError } from "../lib/format";
+import { statusWord } from "../lib/status";
 import { PlatformMark } from "../components/PlatformMark";
 import { Badge, toneFor } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { EmptyState } from "../components/StatusStrip";
 import { useToast } from "../components/Toaster";
+import { useJobs } from "../lib/jobs";
 
-/** History archive: filter by status, search titles, re-download, delete. */
+/** Survives route remounts so returning to History never flashes empty. */
+let cache: HistoryItem[] = [];
+
+/** Date stamp for the card meta: finished time the engine recorded, else created. */
+function stamp(it: HistoryItem): string {
+  return fmtDay(it.finished_at ?? it.created_at);
+}
+
+/** History archive: filter by status, search titles, re-download, delete.
+ *  Known rows render instantly and refresh silently; only a cold, evidence-less
+ *  page shows a skeleton or (if the server is unreachable) an error state. */
 export function History({ refreshKey }: { refreshKey: number }) {
   const toast = useToast();
-  const [items, setItems] = useState<HistoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { start } = useJobs();
+  const [items, setItems] = useState<HistoryItem[]>(cache);
+  const [loading, setLoading] = useState(cache.length === 0);
+  const [failed, setFailed] = useState(false);
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
   const [filter, setFilter] = useState<"all" | "finished" | "failed">("all");
   const [query, setQuery] = useState("");
   const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmId, setConfirmId] = useState<number | null>(null);
+  const confirmTimer = useRef<number | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (quiet: boolean) => {
+    if (!quiet) setLoading(true);
     try {
-      setItems(await api.history());
-    } catch (e) {
-      toast({ title: "History unavailable", body: e instanceof Error ? e.message : "Load failed.", tone: "err" });
+      const next = await api.history();
+      cache = next;
+      setItems(next);
+      setFailed(false);
+    } catch {
+      if (!itemsRef.current.length) setFailed(true);
+      // A quiet refresh keeps the visible rows; the honest ones stay on screen.
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
-    load();
+    load(cache.length > 0);
   }, [load, refreshKey]);
 
   useEffect(() => {
@@ -40,19 +61,40 @@ export function History({ refreshKey }: { refreshKey: number }) {
   }, [confirmClear]);
 
   const queueAgain = async (it: HistoryItem) => {
-    try {
-      await api.start({ url: it.url, format_id: "best", title: it.title, platform: it.platform, thumbnail: it.thumbnail });
-      toast({ title: "Downloading again", tone: "ok" });
-    } catch (e) {
-      toast({ title: "Could not start", body: e instanceof Error ? e.message : "Start failed.", tone: "err" });
-    }
+    // Through the shared store so the job is watched (Downloads + badge update live).
+    const launched = await start({
+      url: it.url,
+      format_id: "best",
+      title: it.title,
+      platform: it.platform,
+      thumbnail: it.thumbnail,
+    });
+    if (launched) toast({ title: "Downloading again", tone: "ok" });
   };
   const removeOne = async (id: number) => {
-    await api.deleteEntry(id);
-    setItems((prev) => prev.filter((i) => i.id !== id));
+    try {
+      await api.deleteEntry(id);
+      setItems((prev) => {
+        const next = prev.filter((i) => i.id !== id);
+        cache = next;
+        return next;
+      });
+    } catch {
+      toast({ title: "Couldn't delete", body: "The service isn't answering — try again.", tone: "err" });
+    } finally {
+      setConfirmId(null);
+    }
+  };
+  // Two-step arm/delete: the first tap asks for 2.5s, the second disposes —
+  // no dialog detour for an everyday mistake-reversible act.
+  const askRemove = (id: number) => {
+    if (confirmTimer.current) window.clearTimeout(confirmTimer.current);
+    setConfirmId(id);
+    confirmTimer.current = window.setTimeout(() => setConfirmId(null), 2500);
   };
   const clearAll = async () => {
     await api.clearHistory();
+    cache = [];
     setItems([]);
     setConfirmClear(false);
   };
@@ -64,11 +106,23 @@ export function History({ refreshKey }: { refreshKey: number }) {
     return true;
   });
 
-  if (loading) return <p className="mono text-[12px] uppercase tracking-[0.16em] text-muted">loading…</p>;
-  if (!items.length)
+  if (loading && !items.length) return <HistorySkeleton />;
+
+  if (failed && !items.length)
     return (
-      <EmptyState title="Nothing here yet" body="Finished videos will appear here." />
+      <EmptyState
+        title="History is unreachable"
+        body="The downloader service on this laptop isn't answering. Check that it's running, then retry."
+        action={
+          <Button variant="outline" onClick={() => load(false)} className="min-h-[44px]">
+            Retry
+          </Button>
+        }
+      />
     );
+
+  if (!items.length)
+    return <EmptyState title="Nothing here yet" body="Finished videos will appear here." />;
 
   return (
     <div>
@@ -120,33 +174,42 @@ export function History({ refreshKey }: { refreshKey: number }) {
               </div>
               <div className="grid gap-1.5 p-2.5">
                 <p className="line-clamp-2 min-h-[2.4em] text-[13px] font-semibold leading-snug text-ink">{it.title}</p>
-                <div className="flex items-center gap-2">
-                  <Badge tone={toneFor(it.status)}>{plainStatus(it.status)}</Badge>
-                  <span className="mono truncate text-[11px] text-muted">
-                    {it.platform} · {fmtBytes(it.file_size)}
-                  </span>
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <Badge tone={toneFor(it.status)}>{statusWord(it.status)}</Badge>
+                  {stamp(it) && <span className="mono text-[11px] text-muted">{stamp(it)}</span>}
+                  <span className="mono text-[11px] text-muted">{it.platform}</span>
+                  <span className="mono min-w-0 text-[11px] text-muted">{fmtBytes(it.file_size)}</span>
                 </div>
                 {it.error && <p className="line-clamp-2 text-[12px] text-grease">{plainError(it.error)}</p>}
-                <div className="mt-0.5 flex items-center gap-3">
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5">
                   {it.is_parent ? (
                     <span className="mono text-[12px] uppercase tracking-[0.12em] text-muted">
                       {it.children_done} of {it.children_total} saved
                     </span>
                   ) : it.status === "finished" && it.file_path ? (
-                    <a href={api.fileUrl(it.job_id)} className="pressable mono inline-flex min-h-[44px] items-center text-[13px] uppercase tracking-[0.12em] text-amber hover:underline" download>
+                    <a href={api.fileUrl(it.job_id)} className="pressable mono inline-flex min-h-[44px] items-center whitespace-nowrap text-[13px] uppercase tracking-[0.12em] text-amber hover:underline" download>
                       Save to this device
                     </a>
                   ) : it.status === "finished" && it.transferred ? (
                     <span className="mono text-[12px] uppercase tracking-[0.12em] text-fixer">✓ On your device</span>
                   ) : null}
                   {!it.is_parent ? (
-                    <button onClick={() => queueAgain(it)} className="pressable mono inline-flex min-h-[44px] items-center text-[13px] uppercase tracking-[0.12em] text-muted hover:text-amber">
+                    <button onClick={() => queueAgain(it)} className="pressable mono inline-flex min-h-[44px] items-center whitespace-nowrap text-[13px] uppercase tracking-[0.12em] text-muted hover:text-amber">
                       Download again
                     </button>
                   ) : null}
-                  <button onClick={() => removeOne(it.id)} aria-label={`Delete ${it.title}`} className="pressable mono ml-auto inline-flex min-h-[44px] items-center text-[13px] uppercase tracking-[0.12em] text-muted hover:text-grease">
-                    Delete
-                  </button>
+                  {confirmId === it.id ? (
+                    <button
+                      onClick={() => removeOne(it.id)}
+                      className="pressable mono inline-flex min-h-[44px] items-center whitespace-nowrap text-[13px] uppercase tracking-[0.12em] text-grease"
+                    >
+                      Sure?
+                    </button>
+                  ) : (
+                    <button onClick={() => askRemove(it.id)} aria-label={`Delete ${it.title}`} className="pressable mono ml-auto inline-flex min-h-[44px] items-center whitespace-nowrap text-[13px] uppercase tracking-[0.12em] text-muted hover:text-grease">
+                      Delete
+                    </button>
+                  )}
                 </div>
               </div>
             </li>
@@ -165,7 +228,7 @@ export function History({ refreshKey }: { refreshKey: number }) {
           <Button variant="danger" onClick={clearAll} className="min-h-[48px] flex-1">
             Clear list
           </Button>
-          <Button variant="outline" onClick={() => setConfirmClear(false)} className="min-h-[48px] flex-1">
+          <Button variant="outline" autoFocus onClick={() => setConfirmClear(false)} className="min-h-[48px] flex-1">
             Keep it
           </Button>
         </div>
@@ -174,34 +237,19 @@ export function History({ refreshKey }: { refreshKey: number }) {
   );
 }
 
-/** Plain words for history states (badge tone still comes from the raw status). */
-function plainStatus(status: string): string {
-  switch (status) {
-    case "finished":
-      return "Done";
-    case "error":
-      return "Failed";
-    case "cancelled":
-      return "Cancelled";
-    case "active":
-      return "Working";
-    case "queued":
-      return "Waiting";
-    default:
-      return status;
-  }
-}
-
-/** Friendly one-liners for the common engine failures; unknown text passes through. */
-function plainError(error: string): string {
-  const low = error.toLowerCase();
-  if (low.includes("timed out") || low.includes("timeout")) return "The internet was too slow — try again.";
-  if (low.includes("private") || low.includes("login") || low.includes("cookies") || low.includes("sign in"))
-    return "This video needs a login — add cookies in Settings, then try again.";
-  if (low.includes("no video")) return "That post has no video in it — pick a post with a video.";
-  if (low.includes("rate-limit") || low.includes("rate limit") || low.includes("too many requests"))
-    return "X is rate-limiting right now — wait a few minutes and try again.";
-  if (low.includes("ffmpeg")) return "A helper program (FFmpeg) is missing on the laptop.";
-  if (low.includes("unsupported")) return "This link can't be downloaded.";
-  return error;
+/** First-load skeleton shaped like the archive itself — the contact grid, latent. */
+function HistorySkeleton() {
+  return (
+    <ol className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4" aria-busy="true" aria-label="Loading history">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <li key={i} className="sleeve overflow-hidden rounded-sm">
+          <div className="shimmer aspect-video w-full bg-panel2" aria-hidden />
+          <div className="grid gap-1.5 p-2.5">
+            <div className="shimmer h-3.5 w-4/5 rounded-sm bg-panel2" aria-hidden />
+            <div className="shimmer h-3 w-2/5 rounded-sm bg-panel2" aria-hidden />
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
 }

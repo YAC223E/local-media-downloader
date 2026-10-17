@@ -23,6 +23,8 @@ export function Home({ settings, onLaunched }: { settings: AppSettings | null; o
   const [fetching, setFetching] = useState(false);
   const [info, setInfo] = useState<MediaInfo | null>(null);
   const [job, setJob] = useState<JobInfo | null>(null);
+  /** The frame's REAL archive number (backend record id), once the engine can name it. */
+  const [frameNo, setFrameNo] = useState<string | null>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const lastJobId = useRef<string | null>(null);
 
@@ -34,6 +36,24 @@ export function Home({ settings, onLaunched }: { settings: AppSettings | null; o
       if (live) setJob(live);
     }
   }, [jobs]);
+
+  // A latent frame wears no number; once the job lands a record id, stamp it.
+  useEffect(() => {
+    if (!job || frameNo || !["finished", "error", "cancelled"].includes(job.status)) return;
+    let cancelled = false;
+    api
+      .history()
+      .then((rows) => rows.find((h) => h.job_id === job.job_id))
+      .then((hit) => {
+        if (!cancelled) setFrameNo(hit ? String(hit.id).padStart(3, "0") : null);
+      })
+      .catch(() => {
+        if (!cancelled) setFrameNo(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [job, frameNo]);
 
   // Mobile: bring feedback into view when a download starts.
   useEffect(() => {
@@ -51,6 +71,7 @@ export function Home({ settings, onLaunched }: { settings: AppSettings | null; o
       }
       setFetching(true);
       setJob(null);
+      setFrameNo(null);
       lastJobId.current = null;
       try {
         setInfo(await api.fetchInfo(target));
@@ -74,7 +95,15 @@ export function Home({ settings, onLaunched }: { settings: AppSettings | null; o
         toast({ title: "Clipboard is empty", body: "Copy a link first, then tap Paste.", tone: "info" });
       }
     } catch {
-      toast({ title: "Can't reach the clipboard", body: "Paste it into the box manually.", tone: "info" });
+      if (!window.isSecureContext) {
+        toast({
+          title: "Browser blocks clipboard on http://",
+          body: "This page is served over the LAN, and browsers only allow clipboard reading on https. Paste the link into the box instead.",
+          tone: "info",
+        });
+      } else {
+        toast({ title: "Can't reach the clipboard", body: "Copying may have failed — paste the link into the box manually.", tone: "info" });
+      }
     }
   }, [fetchInfo, toast]);
 
@@ -148,7 +177,11 @@ export function Home({ settings, onLaunched }: { settings: AppSettings | null; o
             onDrop={(e) => {
               e.preventDefault();
               setDragOver(false);
-              const text = e.dataTransfer.getData("text");
+              const dt = e.dataTransfer;
+              const raw = dt.getData("text/uri-list") || dt.getData("text") || dt.getData("text/plain");
+              // uri-list can carry several lines and comments — first real URL wins.
+              const first = raw.split(/\r?\n/).find((line) => line.trim() && !line.startsWith("#"));
+              const text = (first ?? "").trim();
               if (text) {
                 setUrl(text);
                 fetchInfo(text);
@@ -271,7 +304,7 @@ export function Home({ settings, onLaunched }: { settings: AppSettings | null; o
         <DevelopingFrame
           thumbnail={info?.thumbnail ?? ""}
           title={info?.title ?? ""}
-          frameNo={String(1).padStart(3, "0")}
+          frameNo={frameNo ?? undefined}
           job={job}
           onCancel={cancelJob}
         />

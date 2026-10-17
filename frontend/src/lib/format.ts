@@ -45,3 +45,30 @@ export function platformKey(platform: string, url: string): string {
   if (p.includes("twitch")) return "twitch";
   return "other";
 }
+
+/** One vocabulary for job states lives in ../status.ts (single source). */
+
+/** Short date stamp for history cards ("Oct 17", year shown when not this year). */
+export function fmtDay(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const month = new Intl.DateTimeFormat("en", { month: "short" }).format(d);
+  const now = new Date();
+  const day = `${month} ${d.getDate()}`;
+  return d.getFullYear() === now.getFullYear() ? day : `${day}, ${d.getFullYear()}`;
+}
+
+/** Friendly one-liners for the common engine failures; unknown text passes through. */
+export function plainError(error: string): string {
+  const low = error.toLowerCase();
+  if (low.includes("timed out") || low.includes("timeout")) return "The internet was too slow — try again.";
+  if (low.includes("private") || low.includes("login") || low.includes("cookies") || low.includes("sign in"))
+    return "This video needs a login — add cookies in Settings, then try again.";
+  if (low.includes("no video")) return "That post has no video in it — pick a post with a video.";
+  if (low.includes("rate-limit") || low.includes("rate limit") || low.includes("too many requests"))
+    return "X is rate-limiting right now — wait a few minutes and try again.";
+  if (low.includes("ffmpeg")) return "A helper program (FFmpeg) is missing on the laptop.";
+  if (low.includes("unsupported")) return "This link can't be downloaded.";
+  return error;
+}

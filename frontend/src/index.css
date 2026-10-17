@@ -189,7 +189,8 @@ textarea {
   animation: toast-in var(--dur-2) var(--ease) both;
 }
 
-/* Dialogs open with the same voice: fade + settle. */
+/* Dialogs open with the same voice: fade + settle, and the backdrop fades in
+   behind them so the dim doesn't pop. */
 @keyframes dialog-in {
   from {
     opacity: 0;
@@ -202,6 +203,17 @@ textarea {
 }
 dialog[open] {
   animation: dialog-in var(--dur-2) var(--ease) both;
+}
+dialog[open]::backdrop {
+  animation: backdrop-in var(--dur-2) var(--ease) both;
+}
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* Pressable: uniform tactile acknowledgement for buttons and links. */
@@ -261,6 +273,9 @@ dialog[open] {
     animation: none;
   }
   dialog[open] {
+    animation: none;
+  }
+  dialog[open]::backdrop {
     animation: none;
   }
   .pressable:active {
