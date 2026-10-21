@@ -93,6 +93,7 @@ class JobStatus(BaseModel):
     children_done: int = 0
     current_title: str = ""
     is_parent: bool = False
+    transferred: bool = False  # LAN pull finished; server copy removed
 
 
 class JobInfo(JobStatus):

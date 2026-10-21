@@ -1,186 +1,166 @@
 ---
 name: Local Media Downloader
-description: A personal media darkroom — contact-sleeve fetch, develop, and shelf for local downloads.
+description: A private local media route — paste a link, fetch it on the laptop, save it to the phone.
 colors:
-  safelight-amber: "#F5A524"
-  on-amber: "#12100C"
-  ink-umbra: "#12100C"
-  panel-sepia: "#1A1712"
-  panel-bark: "#221D15"
-  hairline-registration: "#33291C"
-  warm-paper: "#F2EAD8"
-  muted-ash: "#B3A68C"
-  fixer-green: "#8FC16A"
-  grease-red: "#E4572E"
-  day-paper: "#F5F1E6"
-  day-ink: "#211C12"
-  day-amber-deep: "#93500A"
-  day-on-amber: "#FBF8EF"
-  day-fixer-deep: "#2F7A33"
+  night-ground: "#14130F"
+  night-surface: "#1D1B16"
+  night-raised: "#26231C"
+  night-line: "#3A362B"
+  paper-ground: "#F3EFE4"
+  paper-surface: "#FFFDF7"
+  paper-raised: "#EAE4D6"
+  paper-line: "#D7CFBF"
+  saffron: "#F5C542"
+  saffron-deep: "#8A5C00"
+  ink: "#17150F"
+  warm-white: "#F8F4E9"
+  muted-night: "#B8B1A1"
+  muted-day: "#665F52"
+  go-night: "#59C08A"
+  go-day: "#1C7A4C"
+  stop-night: "#F47A61"
+  stop-day: "#B23A2A"
 typography:
-  headline:
-    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
-    fontSize: "15px"
-    fontWeight: 700
-    lineHeight: 1.3
-    letterSpacing: "-0.01em"
+  display:
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Aptos, Roboto, 'Helvetica Neue', Arial, sans-serif"
+    fontWeight: 800
+    lineHeight: 1.05
+    letterSpacing: "-0.03em"
   body:
-    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
-    fontSize: "15px"
-    fontWeight: 400
-    lineHeight: 1.55
-  label:
-    fontFamily: "'Cascadia Mono', 'JetBrains Mono', ui-monospace, Consolas, monospace"
-    fontSize: "11px"
-    fontWeight: 400
-    lineHeight: 1.4
-    letterSpacing: "0.14em"
-  mono:
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Aptos, Roboto, 'Helvetica Neue', Arial, sans-serif"
+    fontSize: "16px"
+    lineHeight: 1.5
+  data:
     fontFamily: "'Cascadia Mono', 'JetBrains Mono', ui-monospace, Consolas, monospace"
     fontSize: "13px"
-    fontWeight: 400
-    lineHeight: 1.5
+    fontVariantNumeric: tabular-nums
 rounded:
-  sm: "2px"
+  card: "18px"
+  field: "12px"
+  button: "10px"
+  pill: "999px"
 spacing:
+  xs: "4px"
   sm: "8px"
   md: "16px"
   lg: "24px"
+  xl: "32px"
 components:
   button-primary:
-    backgroundColor: "{colors.safelight-amber}"
-    textColor: "{colors.ink-umbra}"
-    rounded: "{rounded.sm}"
-    padding: "0 16px"
-    height: "40px"
-  button-primary-hover:
-    backgroundColor: "#C77F0E"
-    textColor: "{colors.ink-umbra}"
-    rounded: "{rounded.sm}"
-  button-outline:
-    backgroundColor: "transparent"
-    textColor: "{colors.warm-paper}"
-    rounded: "{rounded.sm}"
-  input-field:
-    backgroundColor: "{colors.panel-sepia}"
-    textColor: "{colors.warm-paper}"
-    rounded: "{rounded.sm}"
+    backgroundColor: "{colors.saffron}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.button}"
     height: "48px"
-  frame-sleeve:
-    backgroundColor: "{colors.panel-sepia}"
-    textColor: "{colors.warm-paper}"
-    rounded: "{rounded.sm}"
+  surface-card:
+    backgroundColor: "{colors.night-surface}"
+    borderColor: "{colors.night-line}"
+    rounded: "{rounded.card}"
+  field:
+    backgroundColor: "{colors.night-surface}"
+    borderColor: "{colors.night-line}"
+    rounded: "{rounded.field}"
+    height: "52px"
 ---
 
 # Design System: Local Media Downloader
 
 ## Overview
 
-**Creative North Star: "The Contact Sleeve"**
+**Creative North Star: "The Departure Board"**
 
-A personal media darkroom, not a dashboard. The interface borrows a photo lab's contact sleeve — deep umber ground, warm paper text, safelight amber carrying the shell — and spends it on exactly four things: type, palette, density, and one signature move (the developing wash). Layout, navigation, and controls stay standard web components an owner already knows: top bar, side rail / bottom bar, ledger rows, uniform contact grid.
+A small private transit board for media. The app takes the clarity of a station departure board — bold saffron bands, black ink, large numbers, sentence-case signs, route lines — and uses it to explain one journey: **link → laptop → phone**. The world enters through type, palette, density, and one signature move. It never dresses the controls as airport equipment.
 
-Density comes from the sheet, never chrome: 1px registration hairlines, corner-ticked frames, a sticky mono status strip, right-aligned run data on every row. The first viewport is the fetcher — URL plus platform mark, developing frame, format ledger — because paste-to-file in seconds is the whole job.
+The first viewport answers three questions without a manual: what this does, where to start, and what happens next. On Home that means a plain headline, a large paste field, and the three-stop route. After a link is read, the page becomes a quality picker with a persistent mobile action. After a download starts, the route becomes live and tells the truth about which part of the journey is happening.
 
-**Key Characteristics:**
-- Committed darkroom palette; dark by scene (dim room, glowing phone), warm-paper light twin
-- Contact-sheet density with hairline registration and frame numbers
-- One signature move: downloads develop left-to-right under amber wash
-- Tabular mono for every measurement; workhorse system sans for everything else
-- State colors do jobs: amber working, fixer finished, grease-pencil red errors only
+**Key characteristics:**
+- Saffron and black carry action and attention; warm paper is the light world, warm near-black the dark one.
+- One humanist sans family for UI and headings; mono only for measurements.
+- The route strip is the signature: Link → Laptop → Phone, with completed stops checked and the active stop signed.
+- Large touch targets, short copy, visible page titles, standard controls.
+- Honest states: no fake progress, no "saved" without saying where, no save action without the file preflight.
 
 ## Colors
 
-Deep ink sleeve lit by safelight amber; warm paper ink; fixer green reserved for finished frames.
+The palette does jobs. Saffron is the route and the primary action. Green is arrival. Red is a stopped route. Muted ink is secondary information.
 
-### Primary
-- **Safelight Amber** (#F5A524): shell tint, active states, developing wash, primary buttons, focus rings, selection. Carries 30–60% of attention by design.
+### Roles
+- **Saffron (#F5C542):** primary buttons, route fill, active tab underline, focus in dark mode, small attention marks.
+- **Saffron Deep (#8A5C00):** links, icons, and accent text on light surfaces where saffron itself would not carry enough contrast.
+- **Ink (#17150F) / Warm White (#F8F4E9):** text on the opposite ground.
+- **Go (#59C08A dark / #1C7A4C light):** ready, on your phone, FFmpeg ready.
+- **Stop (#F47A61 dark / #B23A2A light):** failed, missing helper, destructive actions.
+- **Ground / Surface / Raised / Line:** tonal layering only; no decorative gradients on working surfaces.
 
-### Secondary
-- **Fixer Green** (#8FC16A, day twin #2F7A33): finished states only — fixed frames, success toasts, ready engine dot.
-- **Grease-Pencil Red** (#E4572E): errors, destructive actions, missing-engine warning. Never decoration.
-
-### Neutral
-- **Ink Umbra** (#12100C): dark ground; chosen from the use scene (night couch, dim desk), never by category default.
-- **Panel Sepia** (#1A1712): sleeve cards, fetch panel, ledger.
-- **Panel Bark** (#221D15): recessed wells (thumbnail beds).
-- **Registration Hairline** (#33291C): 1px borders and dividers.
-- **Warm Paper** (#F2EAD8): primary text on dark.
-- **Muted Ash** (#B3A68C): secondary mono readouts; tinted from the umber, never gray.
-- **Day Paper / Day Ink / Day Amber-Deep** (#F5F1E6 / #211C12 / #93500A): light-theme twins of the same roles.
-
-### Named Rules
-**The Developing-Amber Rule.** Amber means working-or-ready. Finished belongs to fixer green; nothing finished stays amber.
-**The No-Gray Rule.** Secondary text is tinted umber or paper, never neutral gray, on either theme.
+**The Where-Am-I Rule.** A finished file is never just "Saved". It is "On this laptop" until the phone save completes, then "On your phone".
 
 ## Typography
 
-**Display Font:** none — this Operate surface has no display voice; section titles set the top of the ramp.
-**Body Font:** system workhorse grotesk (-apple-system, Segoe UI, Roboto…) with fallbacks.
-**Label/Mono Font:** Cascadia Mono / JetBrains Mono / ui-monospace stack, tabular numerals everywhere.
+**One family:** the system humanist sans. Headings are heavy (800) and tightly tracked; body copy is 15–16px; labels are sentence case, 13–14px, weight 600. Avoid tiny tracked uppercase as a default voice.
 
-**Character:** Lab-ledger plain: semibold short titles, roomy body, tracked mono caps for frame data. Weight and size carry emphasis; type is never gradient, never italic for flair.
+**Data:** mono, tabular numerals, 12–13px, right-aligned where values are compared.
 
-### Hierarchy
-- **Headline** (700, 15px, 1.3): section titles (Format ledger, Shelf, History counts).
-- **Body** (400, 15px/1.55, max ~70ch): descriptions, settings copy, empty-state bodies.
-- **Label** (mono 400, 11px, +0.14em, uppercase): frame numbers, status strip, field labels, run data.
-- **Mono data** (mono 400, 12–13px, tabular): progress %, bytes, speed, ETA, sizes, LAN URLs.
-
-### Named Rules
-**The Duration-as-Length Rule.** Progress and duration are encoded as extent (wash width, bar fill), never as color alone.
-**The Right-Aligned Run-Data Rule.** Sizes, ETAs, and counts sit tight against the row margin like track timings.
+**Scale:** display 32–44px; page title 30–38px; section title 18–20px; card title 15–16px; body 15–16px; helper 13–14px; data 12–13px. Essential information never drops below 12px.
 
 ## Layout
 
-Shell first: sticky mono status strip, top bar (wordmark, LAN chip, theme toggle), side rail on desktop / bottom tab bar on phone, single centered work column (max 72rem). Home splits fetcher-plus-ledger (5fr) against developing frame (4fr) on desktop, stacking single-column on phone. History is a uniform contact grid at fixed 16:9 scale (2 cols phone → 4 wide desktop). Spacing rhythm: tight groups (8px), generous separations (16–24px), always more space above a heading than below it.
+- **Desktop:** sticky top bar; four text-and-icon links inline; content max 1120px. Home is a 7/5 split: paste, result, and quality on the left; a sticky route card on the right.
+- **Phone:** compact top bar with wordmark, status, and theme; four-tab bottom bar at 68px; single-column content with 16px gutters. Primary actions become a fixed bar above the nav when a download is ready to start or save.
+- **Page headers:** every route begins with a visible h1 and one short sentence. No page relies on the nav alone for orientation.
+- **Spacing:** tight groups 8–12px, card padding 16–20px, section gaps 24–32px, generous separation above headings.
 
 ## Elevation & Depth
 
-No shadows as decoration. Depth is tonal layering: ground → panel → recessed bark wells, separated by 1px hairlines. The single shadow in the system is the toast stack's soft offset blur (large, diffused, offset) — transient surfaces only.
-
-### Named Rules
-**The Flat-Sleeve Rule.** Surfaces are flat at rest. Lift appears only on transient layers (toasts), never on cards or rows.
+Working surfaces are flat and hairline-ruled. Shadow belongs only to floating layers: toasts and the fixed mobile action bar. No offset block shadows, no glassmorphism.
 
 ## Shapes
 
-Nearly sharp registration language: 2px radius everywhere (frames, buttons, inputs, badges). Frames carry amber corner ticks (10px, 2px stroke) marking the active plate. No pills, no hard offset block shadows, no circular crops — thumbnails are full-bleed 16:9 plates with bottom scrim captions.
+Cards 18px, fields 12px, buttons 10px, status pills fully round. Thumbnails use a 12px radius inside cards. The route strip uses circles and 2px lines. Standard web controls stay standard.
+
+## Signature: the Route Strip
+
+Three stops: **Link**, **Laptop**, **Phone**. A thin track connects them. Completed stops show a check; the active stop has a saffron ring and a plain-language caption; the arrival stop turns green only when the file is actually on the phone. The strip appears on Home and on live job cards, and never replaces the separate progress meter.
+
+The route is honest about the two-machine model: the laptop fetches and holds the file; the phone saves it. This is the one piece of world-specific interaction the app keeps.
 
 ## Components
 
 ### Buttons
-- **Shape:** nearly sharp (2px radius), 40px height, 16px horizontal padding, semibold 14px.
-- **Primary:** safelight amber fill, ink-umbra text; hover deepens to amber-deep.
-- **Hover / Focus:** color shift only; visible 2px amber focus ring with 2px offset.
-- **Outline:** 1px hairline border, paper text; hover re-tints border and text to amber. **Ghost:** muted text, brightens on hover. **Danger:** grease border and text, grease wash on hover.
+Primary: saffron fill, ink text, 48px. Secondary: surface with a line border. Ghost: muted text, surface on hover. Danger: stop-colored text and border. All interactive targets are at least 44px on touch.
 
-### Inputs / Fields
-- **Style:** 48px height, panel-sepia fill, hairline stroke, 2px radius, 15px paper text; amber caret.
-- **Focus:** border shifts to amber; no glow. **Placeholder:** muted at 70%. Selects and checkboxes match (amber accent).
+### Fields
+Inputs and selects are 52px, 12px radius, surface fill, line border, 16px text. Focus uses a 3px visible ring in the theme focus color. Selects keep a clear chevron and native behavior. Labels sit above fields; helper text sits below.
 
-### Badges
-- **Style:** mono 11px tracked caps, hairline-or-state border, 2px radius. Tones: amber working, fixer finished, grease error, muted neutral.
+### Status Pills
+Dot + word, tinted background, 13px semibold. Words: Waiting, Reading link, Downloading, Finishing, Ready, Failed, Cancelled, On your phone. Never rely on color alone.
 
-### Navigation
-- **Style:** side rail (desktop, 14px semibold rows) / bottom tab bar (phone, 11px labels with 19px glyphs). Active item: amber-tinted border plus amber wash fill; inactive: muted, brightening on hover. Standard links throughout — never a costume control.
+### Job Card
+A horizontal card on phone and desktop: 16:9 thumbnail, title, platform and size/time, a compact route strip, a progress meter, and only the actions for the current state. Save uses the preflight `SaveLink`.
 
-### Developing Frame (signature)
-- Full-bleed 16:9 thumbnail plate with corner ticks; amber wash overlay recedes left-to-right via transform as progress climbs (transform-only, layout-thrash free); finished frames sit fixed with fixer badge and frame number. Mono readout row: % · downloaded/total · speed · ETA · cancel ("pull").
+### Library Card
+Phone: horizontal row with a 112×72 thumbnail, title, metadata, status, and a wrapped action row. Desktop: vertical card in a 2–3 column grid. Search and filters sit above and scope the list; the clear action is separated from the search field.
 
-### Format Ledger
-- Ruled radio rows: semibold label, mono codec/resolution/FPS subline, right-aligned size estimate; grouped video then "Side B" audio-only; best-with-audio preselected; Download plus audio-only quick action in the footer.
+### Empty States
+One icon, one plain title, one sentence, and a next action when one exists. No giant blank media plate.
+
+### Toasts
+Phone: top, below the header. Desktop: bottom-right. Colored rail, title, optional body, close control, auto-dismiss.
+
+## Motion
+
+One easing: `cubic-bezier(.2, .8, .2, 1)`. Press 140ms, entrance 240ms, route fill 400ms. The route line fills left-to-right; arrival gets one small stamp/scale confirmation. No looping decorative motion. Respect `prefers-reduced-motion` and remove all non-essential transitions.
 
 ## Do's and Don'ts
 
-### Do:
-- **Do** keep every measurement in tabular mono with right-aligned run data.
-- **Do** let amber mean working-or-ready and fixer mean finished, everywhere.
-- **Do** theme browser surfaces (selection, caret, scrollbar, focus ring) from the palette.
-- **Do** hold history thumbnails to one fixed 16:9 scale on a shared baseline.
+### Do
+- Make the next action the most prominent thing on the screen.
+- Say "Save to this device", "On this laptop", "On your phone", "Download again".
+- Keep the mobile primary action reachable above the nav.
+- Use real sizes, percentages, speeds, and ETAs from the backend.
+- Keep the route strip and the progress meter separate: one explains the journey, the other measures the transfer.
 
-### Don't:
-- **Don't** add kickers or eyebrows above headings; the heading carries its own weight.
-- **Don't** use gradient text, glassmorphism, or hard offset block shadows.
-- **Don't** costume controls as lab equipment; controls stay standard web components.
-- **Don't** show progress by color alone; always pair extent with numerals.
-- **Don't** invent testimonials, stats, or claims; surface only what yt-dlp actually returned.
+### Don't
+- Use darkroom or archive jargon ("sleeve", "frame", "develop", "fixer") in user-facing copy.
+- Show a giant empty preview plate before there is media.
+- Use tiny uppercase mono for primary actions or essential labels.
+- Show "Saved" without saying where.
+- Bypass the file-existence preflight for any save link.

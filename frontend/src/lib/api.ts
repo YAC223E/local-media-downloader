@@ -54,6 +54,7 @@ export interface JobStatus {
   children_done: number;
   current_title: string;
   is_parent: boolean;
+  transferred?: boolean;
 }
 
 export interface JobInfo extends JobStatus {
@@ -61,6 +62,8 @@ export interface JobInfo extends JobStatus {
   platform: string;
   thumbnail: string;
   origin: string;
+  /** The source URL when this job was started from this browser session. */
+  source_url?: string;
 }
 
 export interface HistoryItem {
@@ -152,6 +155,8 @@ export const api = {
   job: (id: string) => req<JobStatus>(`/api/downloads/${id}`),
   cancel: (id: string) => req<JobStatus>(`/api/downloads/${id}/cancel`, { method: "POST" }),
   fileUrl: (id: string) => `/api/downloads/${id}/file`,
+  fileCheck: (id: string) =>
+    req<{ ok: boolean; filename: string; size: number }>(`/api/downloads/${id}/file?check=1`),
   history: () => req<HistoryItem[]>("/api/history"),
   deleteEntry: (id: number) => req<{ ok: boolean }>(`/api/history/${id}`, { method: "DELETE" }),
   clearHistory: () => req<{ ok: boolean }>("/api/history", { method: "DELETE" }),

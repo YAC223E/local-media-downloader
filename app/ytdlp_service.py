@@ -326,12 +326,36 @@ def download(
     on_status("extracting")
     with yt_dlp.YoutubeDL(opts) as ydl:
         try:
-            ydl.download([url])
+            # extract_info(download=True) is what download() uses internally,
+            # but it also gives us back the infodict after post-processing —
+            # including the REAL landed path. Guessing from progress filenames
+            # fails for temp names like ".fdash-123.m4a" (Instagram) and left
+            # finished jobs with no recorded path, so saving returned JSON.
+            info = ydl.extract_info(url, download=True)
         except Cancelled:
             raise
         except yt_dlp.utils.DownloadError as exc:
             raise RuntimeError(_friendly_error(exc)) from exc
-    return {"ok": True}
+    return {"ok": True, "filepath": _final_filepath(info)}
+
+
+def _final_filepath(info: dict[str, Any] | None) -> str:
+    """Return the actual file yt-dlp landed, after merge/move/postprocessing."""
+    if not info:
+        return ""
+    for item in info.get("requested_downloads") or []:
+        candidate = item.get("filepath") or item.get("_filename")
+        if candidate:
+            return str(candidate)
+    candidate = info.get("filepath") or info.get("_filename")
+    if candidate:
+        return str(candidate)
+    # Playlist result: first entry that landed a file.
+    for entry in info.get("entries") or []:
+        found = _final_filepath(entry)
+        if found:
+            return found
+    return ""
 
 
 def _friendly_error(exc: Exception) -> str:

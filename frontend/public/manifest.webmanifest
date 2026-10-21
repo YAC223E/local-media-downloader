@@ -1,16 +1,16 @@
 {
   "name": "Local Media Downloader",
-  "short_name": "Media DL",
-  "description": "Fetch videos and audio to your shelf. Fully local, LAN-ready.",
+  "short_name": "Local Media",
+  "description": "Paste a link. The laptop fetches it, then your phone saves it. Private, local, and on your own Wi-Fi.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#12100c",
-  "theme_color": "#12100c",
+  "background_color": "#14130f",
+  "theme_color": "#14130f",
   "icons": [
-    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

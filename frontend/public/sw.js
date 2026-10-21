@@ -6,8 +6,8 @@
  * doubles as the navigation fallback. Bump CACHE when the shell changes
  * incompatibly.
  */
-const CACHE = "lmd-shell-v1";
-const CORE = ["/", "/manifest.webmanifest"];
+const CACHE = "lmd-shell-v2";
+const CORE = ["/", "/manifest.webmanifest", "/icons/icon.svg", "/icons/icon-192.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

@@ -7,6 +7,7 @@ const ACTIVE = ["queued", "extracting", "downloading", "merging"];
 interface JobsCtx {
   jobs: JobInfo[];
   activeCount: number;
+  readyCount: number;
   /** True when a downloads fetch completed and failed (server unreachable). */
   loadFailed: boolean;
   start: (payload: StartPayload) => Promise<JobInfo | null>;
@@ -34,7 +35,11 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async () => {
     try {
       const list = await api.downloads();
-      for (const j of list) mapRef.current.set(j.job_id, j);
+      for (const j of list) {
+        const prev = mapRef.current.get(j.job_id);
+        // Keep browser-session source URLs and any locally enriched fields.
+        mapRef.current.set(j.job_id, prev ? { ...prev, ...j } : j);
+      }
       setLoadFailed(false);
       sync();
     } catch {
@@ -68,6 +73,7 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
         const full: JobInfo = {
           ...s, title: payload.title, platform: payload.platform,
           thumbnail: payload.thumbnail, origin: "lan", is_parent: false,
+          source_url: payload.url,
         };
         mapRef.current.set(s.job_id, full);
         sync();
@@ -88,6 +94,7 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
         const full: JobInfo = {
           ...s, title: payload.title, platform: payload.platform,
           thumbnail: payload.thumbnail, origin: "lan", is_parent: true,
+          source_url: payload.url,
         };
         mapRef.current.set(s.job_id, full);
         sync();
@@ -129,9 +136,13 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   const activeCount = useMemo(() => jobs.filter((j) => ACTIVE.includes(j.status)).length, [jobs]);
+  const readyCount = useMemo(
+    () => jobs.filter((j) => j.status === "finished" && !j.transferred && !j.is_parent).length,
+    [jobs],
+  );
   const value = useMemo(
-    () => ({ jobs, activeCount, loadFailed, start, startPlaylist, cancel, refresh }),
-    [jobs, activeCount, loadFailed, start, startPlaylist, cancel, refresh],
+    () => ({ jobs, activeCount, readyCount, loadFailed, start, startPlaylist, cancel, refresh }),
+    [jobs, activeCount, readyCount, loadFailed, start, startPlaylist, cancel, refresh],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -26,6 +26,12 @@ log = logging.getLogger("lmd.jobs")
 
 STATUSES = ("queued", "extracting", "downloading", "merging", "finished", "error", "cancelled")
 
+#: Playable outputs the resolver may claim; sidecars (.srt/.jpg/.json) never.
+MEDIA_SUFFIXES = {
+    ".mp4", ".mkv", ".webm", ".mov", ".m4v", ".avi",
+    ".m4a", ".mp3", ".aac", ".opus", ".ogg", ".oga", ".flac", ".wav",
+}
+
 
 class Job:
     """Live mutable state for one download (SSE reads this; never persisted directly)."""
@@ -58,6 +64,9 @@ class Job:
         self.error = ""
         self.format_label = ""
         self.current_title = ""  # parent: title of the child currently working
+        self.filepath = ""  # exact final path reported by yt-dlp after post-processing
+        self.started_at = 0.0  # when the worker actually began (slot acquired)
+        self.transferred = False  # LAN pull completed; server copy removed
         self._cancel = threading.Event()
         self.updated = time.time()
 
@@ -73,6 +82,7 @@ class Job:
             "children_done": self._children_done,
             "current_title": self.current_title,
             "is_parent": self.is_parent,
+            "transferred": self.transferred,
         }
 
 
@@ -178,6 +188,14 @@ class Manager:
                 for jid in terminal[:len(self.jobs) - self.JOB_CAP]:
                     del self.jobs[jid]
 
+    def mark_transferred(self, job_id: str) -> None:
+        """A LAN pull finished; reflect it in live job state immediately."""
+        job = self.get(job_id)
+        if job:
+            job.transferred = True
+            job.filepath = ""
+            job.touch()
+
     def cancel(self, job_id: str) -> bool:
         job = self.get(job_id)
         if not job or job.status in {"finished", "error", "cancelled"}:
@@ -210,6 +228,7 @@ class Manager:
             job.error = "Concurrent limit reached — try again when a download finishes."
             self._finish(job, "error")
             return
+        job.started_at = time.time()
         try:
             settings = load_settings()
             safe_platform = "".join(c for c in job.platform if c.isalnum() or c in ("-", "_", " ")).strip() or "Other"
@@ -313,13 +332,15 @@ class Manager:
         fmt = job.format_id
         for attempt in (1, 2):
             try:
-                yt.download(
+                result = yt.download(
                     job.url, fmt, settings, outtmpl,
                     on_progress=on_progress, on_status=on_status,
                     should_cancel=job._cancel.is_set,
                     media_opts=job.media_opts,
                     needs_audio=job.needs_audio,
                 )
+                if isinstance(result, dict):
+                    job.filepath = str(result.get("filepath") or "")
                 return
             except Exception as exc:  # noqa: BLE001 — classified below
                 msg = str(exc)
@@ -379,8 +400,12 @@ class Manager:
                 rec.error = job.error
                 rec.finished_at = datetime.utcnow()
                 if not job.is_parent:
-                    # Resolve the saved file: match by job filename or newest in platform dir.
-                    found = self._locate_file(job)
+                    # Prefer the exact path yt-dlp reported after merge/move;
+                    # fall back to matching the progress filename (legacy/odd
+                    # extractors) and, last, the newest media file.
+                    found = self._reported_file(job)
+                    if found is None:
+                        found = self._locate_file(job)
                     if found:
                         base = Path(load_settings().download_dir).resolve()
                         try:
@@ -404,6 +429,19 @@ class Manager:
         finally:
             session.close()
 
+    def _reported_file(self, job: Job) -> Path | None:
+        """The exact file yt-dlp reported after post-processing, if it exists."""
+        if not job.filepath:
+            return None
+        candidate = Path(job.filepath)
+        if not candidate.is_absolute():
+            candidate = Path(load_settings().download_dir) / candidate
+        try:
+            candidate = candidate.resolve()
+        except OSError:
+            return None
+        return candidate if candidate.is_file() else None
+
     def _locate_file(self, job: Job) -> Path | None:
         settings: AppSettings = load_settings()
         base = Path(settings.download_dir)
@@ -421,21 +459,35 @@ class Manager:
             direct = search_dir / Path(job.filename).name
             if direct.exists():
                 return direct
-            # Streams land as `Title [id].f308.webm`; the merge renames to
-            # `Title [id].mp4`, so also try the stem with the format-number
-            # fragment stripped. glob.escape: titles contain "[id]" and "*"
-            # would match the wrong files (or nothing) without it.
+            # Streams land as `Title [id].f308.webm` or, on Instagram,
+            # `Title [id].fdash-123.m4a`; the merge renames to
+            # `Title [id].mp4`. Strip any `.f<format-id>` suffix — not just
+            # numeric ids — then match the base. glob.escape: titles contain
+            # "[id]" and would otherwise be treated as glob character classes.
             stem = Path(job.filename).stem
-            for candidate in (stem, re.sub(r"\.f\d+$", "", stem)):
+            for candidate in (stem, re.sub(r"\.f[^.]+$", "", stem)):
                 if not candidate:
                     continue
                 if search_dir.exists():
-                    #1  Newest first: mid-merge can leave .part shells around.
+                    # Newest first: mid-merge can leave .part shells around.
                     matches = sorted(search_dir.glob(f"{glob.escape(candidate)}.*"),
                                      key=lambda p: p.stat().st_mtime, reverse=True)
                     final = [m for m in matches if not m.name.endswith(".part")]
                     if final:
                         return final[0]
+        # Last resort: yt-dlp gave no usable filename. Take the newest playable
+        # file written since this worker started, so a completed download can
+        # never become unsaveable (which surfaced as a JSON "file" in browsers).
+        if search_dir.is_dir():
+            cutoff = max(0.0, float(getattr(job, "started_at", 0.0) or 0.0) - 2.0)
+            recent = [
+                p for p in search_dir.iterdir()
+                if p.is_file()
+                and p.suffix.lower() in MEDIA_SUFFIXES
+                and p.stat().st_mtime >= cutoff
+            ]
+            if recent:
+                return max(recent, key=lambda p: p.stat().st_mtime)
         return None
 
 

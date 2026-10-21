@@ -1,26 +1,36 @@
 import { ButtonHTMLAttributes, forwardRef } from "react";
 import { cn } from "../../lib/utils";
 
-type Variant = "primary" | "outline" | "ghost" | "danger";
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+export type ButtonSize = "sm" | "md" | "lg";
 
-/** Standard button in the sleeve vocabulary: filled ink, hairline outline, quiet ghost. */
+export function buttonStyles({
+  variant = "primary",
+  size = "md",
+  className,
+}: {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  className?: string;
+} = {}) {
+  return cn(
+    "pressable inline-flex items-center justify-center gap-2 rounded-button font-semibold",
+    "disabled:cursor-not-allowed disabled:opacity-45",
+    variant === "primary" &&
+      "bg-accent text-onaccent hover:bg-accenthover disabled:border disabled:border-line disabled:bg-surface2 disabled:text-muted disabled:opacity-100",
+    variant === "secondary" && "border border-line-strong bg-surface text-ink hover:border-muted",
+    variant === "ghost" && "text-muted hover:bg-surface2 hover:text-ink",
+    variant === "danger" && "border border-stop/40 text-stop hover:bg-stopwash",
+    size === "sm" && "min-h-[44px] px-3 text-sm",
+    size === "md" && "min-h-[48px] px-4 text-[15px]",
+    size === "lg" && "min-h-[54px] px-6 text-base",
+    className,
+  );
+}
+
 export const Button = forwardRef<
   HTMLButtonElement,
-  ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }
->(function Button({ variant = "primary", className, ...props }, ref) {
-  return (
-    <button
-      ref={ref}
-      className={cn(
-        "inline-flex h-10 items-center justify-center gap-2 rounded-sm px-4 text-sm font-semibold",
-        "pressable disabled:cursor-not-allowed disabled:opacity-45",
-        variant === "primary" && "bg-amber text-onamber hover:bg-amberdeep",
-        variant === "outline" && "border border-hairline bg-transparent text-ink hover:border-amber hover:text-amber",
-        variant === "ghost" && "text-muted hover:text-ink",
-        variant === "danger" && "border border-grease/60 text-grease hover:bg-grease/10",
-        className,
-      )}
-      {...props}
-    />
-  );
+  ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: ButtonSize }
+>(function Button({ variant = "primary", size = "md", className, type = "button", ...props }, ref) {
+  return <button ref={ref} type={type} className={buttonStyles({ variant, size, className })} {...props} />;
 });

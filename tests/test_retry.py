@@ -109,6 +109,9 @@ def test_format_mapping_needs_audio(monkeypatch):
         def download(self, urls):
             pass
 
+        def extract_info(self, url, download=True):
+            return {"requested_downloads": []}
+
     monkeypatch.setattr(yt.yt_dlp, "YoutubeDL", FakeYDL)
     s = load_settings()
     noop = lambda *a, **k: None  # noqa: E731

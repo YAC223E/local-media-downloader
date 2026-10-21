@@ -1,169 +1,308 @@
-import { api, type JobInfo } from "../lib/api";
+import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { api, type HistoryItem, type JobInfo } from "../lib/api";
 import { useJobs } from "../lib/jobs";
-import { fmtBytes, fmtEta, fmtSpeed, plainError } from "../lib/format";
-import { statusWord } from "../lib/status";
-import { Badge, toneFor } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
-import { EmptyState } from "../components/StatusStrip";
+import { PageHeader } from "../components/PageHeader";
+import { EmptyState } from "../components/EmptyState";
+import { JobCard } from "../components/JobCard";
+import { buttonStyles, Button } from "../components/ui/button";
+import { Icon, Spinner } from "../components/ui/Icon";
 import { useToast } from "../components/Toaster";
+import { cn } from "../lib/utils";
 
-const LIVE = ["queued", "extracting", "downloading", "merging"];
+const LIVE = ["queued", "extracting", "downloading", "merging", "active"];
 
-/** Downloads manager: live jobs grouped Active / Finished, phone-first rows. */
+type HistoryMap = Map<string, HistoryItem>;
+
+/** Downloads manager: ready files first, then live work and an honest failure drawer. */
 export function Downloads() {
   const { jobs, loadFailed, start, refresh, cancel } = useJobs();
   const toast = useToast();
-  const active = jobs.filter((j) => LIVE.includes(j.status));
-  const done = jobs.filter((j) => !LIVE.includes(j.status));
+  const [refreshing, setRefreshing] = useState(false);
+  const [history, setHistory] = useState<HistoryMap | null>(null);
+  const [historyFailed, setHistoryFailed] = useState(false);
+  const [failuresExpanded, setFailuresExpanded] = useState<boolean | null>(null);
 
-  const retry = async (j: JobInfo) => {
-    // The source URL lives on the History record, keyed by the same job id —
-    // look it up rather than guess, then re-queue through the watched store.
+  const loadHistory = useCallback(async () => {
     try {
-      const hit = (await api.history()).find((h) => h.job_id === j.job_id);
-      if (!hit) {
-        toast({ title: "Entry not in History", body: "It was cleared — fetch the link again on Home.", tone: "info" });
-        return;
-      }
-      const launched = await start({
-        url: hit.url,
-        format_id: "best",
-        title: hit.title,
-        platform: hit.platform,
-        thumbnail: hit.thumbnail,
-      });
-      if (launched) toast({ title: "Downloading again", tone: "ok" });
+      const rows = await api.history();
+      setHistory(new Map(rows.map((row) => [row.job_id, row])));
+      setHistoryFailed(false);
     } catch {
-      toast({ title: "Can't reach History", body: "The service isn't answering — check the laptop and retry.", tone: "err" });
+      setHistoryFailed(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadHistory();
+    const onSaved = () => void loadHistory();
+    window.addEventListener("lmd:saved", onSaved);
+    return () => window.removeEventListener("lmd:saved", onSaved);
+  }, [loadHistory]);
+
+  const ready = jobs
+    .filter((job) => job.status === "finished" && !job.transferred && !job.is_parent)
+    .reverse();
+  const active = jobs.filter((job) => LIVE.includes(job.status));
+  const arrived = jobs.filter((job) => job.status === "finished" && !!job.transferred).reverse();
+  const finishedOther = jobs
+    .filter((job) => job.status === "finished" && !job.transferred && !!job.is_parent)
+    .reverse();
+  const failed = jobs
+    .filter((job) => job.status === "error" || job.status === "cancelled")
+    .reverse();
+  const hasAboveFold = ready.length + active.length + arrived.length + finishedOther.length > 0;
+  const failuresOpen = failuresExpanded ?? !hasAboveFold;
+  const knownHistory = history !== null;
+
+  const doRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refresh();
+      await loadHistory();
+    } finally {
+      setRefreshing(false);
     }
   };
 
-  if (loadFailed && !jobs.length)
+  const retry = async (job: JobInfo) => {
+    let source = job.source_url;
+    let hit = history?.get(job.job_id);
+
+    // Older jobs do not carry their source in the live payload. The Library
+    // row is the honest fallback; if neither exists, ask for the link again.
+    if (!source && !hit) {
+      try {
+        const rows = await api.history();
+        const next: HistoryMap = new Map(rows.map((row) => [row.job_id, row]));
+        setHistory(next);
+        hit = next.get(job.job_id);
+      } catch {
+        toast({ title: "Can't reach Library", body: "The service isn't answering — check the laptop and retry.", tone: "err" });
+        return;
+      }
+    }
+    source = source || hit?.url;
+    if (!source) {
+      toast({
+        title: "Original link not found",
+        body: "Paste the link again on Home to start a fresh download.",
+        tone: "info",
+      });
+      return;
+    }
+
+    const launched = await start({
+      url: source,
+      format_id: "best",
+      title: job.title || hit?.title || "",
+      platform: job.platform || hit?.platform || "Other",
+      thumbnail: job.thumbnail || hit?.thumbnail || "",
+    });
+    if (launched) toast({ title: "Downloading again", body: "Progress is in Active.", tone: "ok" });
+  };
+
+  if (loadFailed && !jobs.length) {
     return (
-      <EmptyState
-        title="Downloads are unreachable"
-        body="The downloader service on this laptop isn't answering. Check that it's running, then retry."
-        action={
-          <Button variant="outline" onClick={() => refresh()} className="min-h-[44px]">
-            Retry
-          </Button>
-        }
-      />
+      <div>
+        <PageHeader title="Downloads" description="Ready files first, then live progress. You can leave this page." />
+        <EmptyState
+          title="Can't reach this laptop"
+          body="The downloader service isn't answering. Check that it's running, then try again."
+          icon="wifi"
+          action={
+            <Button variant="secondary" onClick={doRefresh} disabled={refreshing}>
+              {refreshing ? <Spinner size={17} className="spin" /> : <Icon name="refresh" size={17} />}
+              Try again
+            </Button>
+          }
+        />
+      </div>
     );
+  }
 
   if (!jobs.length) {
     return (
-      <EmptyState
-        title="Nothing downloading"
-        body="Fetch a video on Home and it will appear here with live progress — even if you switch tabs."
-      />
+      <div>
+        <PageHeader title="Downloads" description="Ready files first, then live progress. You can leave this page." />
+        <EmptyState
+          title="Nothing downloading"
+          body="Files waiting for your phone will appear here — even if you switch tabs or lock your phone."
+          icon="download"
+          action={
+            <Link to="/" className={buttonStyles({ variant: "primary", size: "md" })}>
+              <Icon name="link" size={17} />
+              Get a video
+            </Link>
+          }
+        />
+      </div>
     );
   }
 
   return (
-    <div className="grid gap-5">
-      {active.length > 0 && (
-        <section aria-label="Active downloads">
-          <h2 className="mono px-1 pb-2 text-[11px] uppercase tracking-[0.16em] text-muted">
-            Active · {active.length}
-          </h2>
-          <ol className="grid gap-3 md:grid-cols-2">
-            {active.map((j) => (
-              <Row key={j.job_id} job={j} onCancel={() => cancel(j.job_id)} />
-            ))}
-          </ol>
-        </section>
-      )}
-      {done.length > 0 && (
-        <section aria-label="Recent downloads">
-          <h2 className="mono px-1 pb-2 text-[11px] uppercase tracking-[0.16em] text-muted">
-            Recent · {done.length}
-          </h2>
-          <ol className="grid gap-3 md:grid-cols-2">
-            {done.map((j) => (
-              <Row key={j.job_id} job={j} onCancel={() => cancel(j.job_id)} onRetry={() => retry(j)} />
-            ))}
-          </ol>
-        </section>
-      )}
-    </div>
-  );
-}
+    <div>
+      <PageHeader
+        title="Downloads"
+        description="Ready files first, then live progress. You can leave this page."
+        action={
+          <Button variant="secondary" size="sm" onClick={doRefresh} disabled={refreshing}>
+            {refreshing ? <Spinner size={16} className="spin" /> : <Icon name="refresh" size={16} />}
+            Refresh
+          </Button>
+        }
+      />
 
-function Row({ job: j, onCancel, onRetry }: { job: JobInfo; onCancel: () => void; onRetry?: () => void }) {
-  const pct = Math.round(j.progress * 100);
-  // One value drives numerals, fill extent and aria alike — no drift.
-  const fillPct = j.is_parent && j.children_total > 0 ? Math.round((j.children_done / j.children_total) * 100) : pct;
-  const live = LIVE.includes(j.status);
-  const done = j.status === "finished";
-  // Developing-Amber rule: amber while working, fixer green when finished,
-  // no wash at all for jobs that never landed anything.
-  const fillTone = live ? "bg-amber" : done ? "bg-fixer" : "bg-transparent";
-  const fillW = live || done ? `${fillPct}%` : "0%";
-  return (
-    <li className="sleeve overflow-hidden rounded-sm">
-      <div className="flex items-center gap-3 p-3">
-        {j.thumbnail ? (
-          <img src={j.thumbnail} alt="" loading="lazy" className="h-12 w-20 shrink-0 rounded-sm object-cover" />
-        ) : (
-          <span className="grid h-12 w-20 shrink-0 place-items-center rounded-sm bg-panel2 text-[10px] text-muted">
-            {j.platform}
-          </span>
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-ink">{j.title || "Download"}</p>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
-            <Badge tone={toneFor(j.status)}>{statusWord(j.status)}</Badge>
-            <span className="mono text-[12px] text-ink">
-              {j.is_parent && j.children_total > 0 ? `${j.children_done} of ${j.children_total}` : `${pct}%`}
-            </span>
-            {!j.is_parent && !done && live ? (
-              <span className="mono text-[11px] text-muted">
-                {fmtBytes(j.downloaded_bytes)} / {fmtBytes(j.total_bytes)} · {fmtSpeed(j.speed)} · ETA {fmtEta(j.eta)}
-              </span>
-            ) : null}
-            {!j.is_parent && done ? (
-              <span className="mono text-[11px] text-muted">
-                Saved{fmtBytes(j.downloaded_bytes) !== "—" ? ` · ${fmtBytes(j.downloaded_bytes)}` : ""}
-              </span>
-            ) : null}
-            {j.is_parent && j.current_title ? (
-              <span className="mono w-full truncate text-[11px] text-muted">now: {j.current_title}</span>
-            ) : null}
-            {j.error ? <span className="line-clamp-2 w-full text-[13px] text-grease">{plainError(j.error)}</span> : null}
-          </div>
+      {loadFailed ? (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-field border border-stop/30 bg-stopwash px-4 py-3">
+          <p className="text-[14px] font-semibold text-stop">The service isn't answering. Showing the last known progress.</p>
+          <Button variant="secondary" size="sm" onClick={doRefresh} disabled={refreshing}>
+            Try again
+          </Button>
         </div>
-      </div>
-      <div
-        className="h-1 bg-panel2"
-        role="progressbar"
-        aria-valuenow={fillW === "0%" ? 0 : fillPct}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={`Download progress for ${j.title}`}
-      >
-        <div
-          className={`h-full transition-[width] duration-300 ${fillTone}`}
-          style={{ width: fillW }}
-        />
-      </div>
-      <div className="flex items-center gap-4 border-t border-hairline px-3 py-1.5">
-        {live ? (
-          <button onClick={onCancel} className="pressable mono inline-flex min-h-[44px] items-center text-[13px] uppercase tracking-[0.12em] text-muted">
-            Cancel
-          </button>
+      ) : null}
+
+      {historyFailed ? (
+        <p className="mb-5 text-[13px] text-muted">
+          Couldn't check Library. Older jobs may need their link pasted again.
+        </p>
+      ) : null}
+
+      <div className="grid gap-7">
+        {ready.length > 0 ? (
+          <section aria-labelledby="ready-heading">
+            <div className="mb-3 flex items-center gap-2 px-1">
+              <h2 id="ready-heading" className="text-[18px] font-bold text-ink">
+                Ready to save
+              </h2>
+              <span className="grid h-6 min-w-6 place-items-center rounded-pill bg-gowash px-1.5 text-[12px] font-extrabold text-go">
+                {ready.length}
+              </span>
+            </div>
+            <ol className={cn("grid gap-3", ready.length > 1 && "md:grid-cols-2")}>
+              {ready.map((job) => (
+                <JobCard
+                  key={job.job_id}
+                  job={job}
+                  inLibrary={knownHistory ? history?.has(job.job_id) : undefined}
+                  onCancel={(entry) => cancel(entry.job_id)}
+                  onRetry={retry}
+                />
+              ))}
+            </ol>
+          </section>
         ) : null}
-        {j.status === "finished" && !j.is_parent ? (
-          <a href={api.fileUrl(j.job_id)} download className="pressable mono inline-flex min-h-[44px] items-center text-[13px] uppercase tracking-[0.12em] text-amber">
-            Save to this device
-          </a>
+
+        {active.length > 0 ? (
+          <section aria-labelledby="active-heading">
+            <div className="mb-3 flex items-center gap-2 px-1">
+              <h2 id="active-heading" className="text-[18px] font-bold text-ink">
+                Active
+              </h2>
+              <span className="grid h-6 min-w-6 place-items-center rounded-pill bg-accent px-1.5 text-[12px] font-extrabold text-onaccent">
+                {active.length}
+              </span>
+            </div>
+            <ol className={cn("grid gap-3", active.length > 1 && "md:grid-cols-2")}>
+              {active.map((job) => (
+                <JobCard
+                  key={job.job_id}
+                  job={job}
+                  inLibrary={knownHistory ? history?.has(job.job_id) : undefined}
+                  onCancel={(entry) => cancel(entry.job_id)}
+                  onRetry={retry}
+                />
+              ))}
+            </ol>
+          </section>
         ) : null}
-        {j.status === "error" && onRetry ? (
-          <button onClick={onRetry} className="pressable mono inline-flex min-h-[44px] items-center text-[13px] uppercase tracking-[0.12em] text-amber">
-            Retry from History
-          </button>
+
+        {arrived.length > 0 ? (
+          <section aria-labelledby="arrived-heading">
+            <div className="mb-3 flex items-center gap-2 px-1">
+              <h2 id="arrived-heading" className="text-[18px] font-bold text-ink">
+                Already saved
+              </h2>
+              <span className="grid h-6 min-w-6 place-items-center rounded-pill bg-gowash px-1.5 text-[12px] font-extrabold text-go">
+                {arrived.length}
+              </span>
+            </div>
+            <ol className={cn("grid gap-3", arrived.length > 1 && "md:grid-cols-2")}>
+              {arrived.map((job) => (
+                <JobCard
+                  key={job.job_id}
+                  job={job}
+                  inLibrary={knownHistory ? history?.has(job.job_id) : undefined}
+                  onCancel={(entry) => cancel(entry.job_id)}
+                  onRetry={retry}
+                />
+              ))}
+            </ol>
+          </section>
+        ) : null}
+
+        {finishedOther.length > 0 ? (
+          <section aria-labelledby="finished-heading">
+            <div className="mb-3 flex items-center gap-2 px-1">
+              <h2 id="finished-heading" className="text-[18px] font-bold text-ink">
+                Finished
+              </h2>
+              <span className="grid h-6 min-w-6 place-items-center rounded-pill bg-surface2 px-1.5 text-[12px] font-extrabold text-muted">
+                {finishedOther.length}
+              </span>
+            </div>
+            <ol className={cn("grid gap-3", finishedOther.length > 1 && "md:grid-cols-2")}>
+              {finishedOther.map((job) => (
+                <JobCard
+                  key={job.job_id}
+                  job={job}
+                  inLibrary={knownHistory ? history?.has(job.job_id) : undefined}
+                  onCancel={(entry) => cancel(entry.job_id)}
+                  onRetry={retry}
+                />
+              ))}
+            </ol>
+          </section>
+        ) : null}
+
+        {failed.length > 0 ? (
+          <section aria-labelledby="failed-heading">
+            <h2 id="failed-heading" className="sr-only">
+              Failed downloads
+            </h2>
+            <details
+              open={failuresOpen}
+              onToggle={(event) => setFailuresExpanded(event.currentTarget.open)}
+              className="group"
+            >
+              <summary className="flex min-h-[56px] cursor-pointer list-none items-center justify-between gap-3 rounded-card border border-line bg-surface px-4 text-[15px] font-bold text-ink [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center gap-2">
+                  Failed
+                  <span className="grid h-6 min-w-6 place-items-center rounded-pill bg-surface2 px-1.5 text-[12px] font-extrabold text-muted">
+                    {failed.length}
+                  </span>
+                </span>
+                <span className="flex items-center gap-1.5 text-[13px] font-semibold text-muted">
+                  <span className="group-open:hidden">Show</span>
+                  <span className="hidden group-open:inline">Hide</span>
+                  <Icon name="chevronDown" size={18} className="transition-transform group-open:rotate-180" />
+                </span>
+              </summary>
+              <ol className="mt-3 grid gap-3">
+                {failed.map((job) => (
+                  <JobCard
+                    key={job.job_id}
+                    job={job}
+                    inLibrary={knownHistory ? history?.has(job.job_id) : undefined}
+                    onCancel={(entry) => cancel(entry.job_id)}
+                    onRetry={retry}
+                  />
+                ))}
+              </ol>
+            </details>
+          </section>
         ) : null}
       </div>
-    </li>
+    </div>
   );
 }

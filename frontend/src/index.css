@@ -1,5 +1,5 @@
-/* Contact Sleeve world: deep ink sleeve, warm paper, safelight amber, fixer green.
-   Dark is the default scene (dim room, glowing phone); light is warm lab paper. */
+/* Local Routes world: warm paper or near-black ground, saffron bands, ink type.
+   Saffron means action / in transit. Green means arrived. Red means stopped. */
 
 @tailwind base;
 @tailwind components;
@@ -7,34 +7,49 @@
 
 :root,
 html[data-theme="dark"] {
-  --ground: #12100c;
-  --panel: #1a1712;
-  --panel2: #221d15;
-  --hairline: #33291c;
-  --ink: #f2ead8;
-  --muted: #b3a68c;
-  --amber: #f5a524;
-  --amberdeep: #c77f0e;
-  --on-amber: #12100c;
-  --fixer: #8fc16a;
-  --grease: #e4572e;
-  --wash: rgba(245, 165, 36, 0.22);
+  --ground: #14130f;
+  --surface: #1d1b16;
+  --surface-2: #26231c;
+  --line: #3a362b;
+  --line-strong: #77705f;
+  --ink: #f8f4e9;
+  --muted: #b8b1a1;
+  --accent: #f5c542;
+  --accent-hover: #ffd35c;
+  --on-accent: #17150f;
+  --brand: #f5c542;
+  --focus: #f5c542;
+  --go: #59c08a;
+  --stop: #f47a61;
+  --info: #8ab4d8;
+  --accent-wash: rgba(245, 197, 66, 0.14);
+  --go-wash: rgba(89, 192, 138, 0.14);
+  --stop-wash: rgba(244, 122, 97, 0.14);
+  --shadow: 0 18px 50px -24px rgba(0, 0, 0, 0.8);
+  --nav-h: 68px;
   color-scheme: dark;
 }
 
 html[data-theme="light"] {
-  --ground: #f5f1e6;
-  --panel: #fbf8ef;
-  --panel2: #efe7d3;
-  --hairline: #d8cbb0;
-  --ink: #211c12;
-  --muted: #6d6046;
-  --amber: #93500a;
-  --amberdeep: #7a4208;
-  --on-amber: #fbf8ef;
-  --fixer: #2f7a33;
-  --grease: #b73a17;
-  --wash: rgba(147, 80, 10, 0.14);
+  --ground: #f3efe4;
+  --surface: #fffdf7;
+  --surface-2: #eae4d6;
+  --line: #d7cfbf;
+  --line-strong: #8a8274;
+  --ink: #17150f;
+  --muted: #665f52;
+  --accent: #f5c542;
+  --accent-hover: #eab62c;
+  --on-accent: #17150f;
+  --brand: #8a5c00;
+  --focus: #8a5c00;
+  --go: #1c7a4c;
+  --stop: #b23a2a;
+  --info: #2c5f8a;
+  --accent-wash: rgba(245, 197, 66, 0.22);
+  --go-wash: rgba(28, 122, 76, 0.12);
+  --stop-wash: rgba(178, 58, 42, 0.1);
+  --shadow: 0 18px 50px -24px rgba(53, 43, 24, 0.28);
   color-scheme: light;
 }
 
@@ -45,8 +60,9 @@ body {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Aptos, Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 .mono {
@@ -54,131 +70,76 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Browser surfaces carry the world: selection, caret, scrollbars, focus, numerals. */
 ::selection {
-  background: var(--amber);
-  color: #12100c;
+  background: var(--accent);
+  color: var(--on-accent);
 }
-html[data-theme="light"] ::selection {
-  color: #fbf8ef;
-}
+
 :focus-visible {
-  outline: 2px solid var(--amber);
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
-  border-radius: 2px;
+  border-radius: 6px;
 }
+
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--hairline) transparent;
+  scrollbar-color: var(--line) transparent;
 }
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 *::-webkit-scrollbar-thumb {
-  background: var(--hairline);
+  background: var(--line);
   border-radius: 8px;
 }
 input,
+select,
 textarea {
-  caret-color: var(--amber);
+  min-width: 0;
+  caret-color: var(--brand);
 }
 
-/* Sleeve registration: 1px hairlines + corner ticks on frames. */
-.sleeve {
-  border: 1px solid var(--hairline);
-  background: var(--panel);
-}
-.frame-ticks {
-  position: relative;
-}
-.frame-ticks::before,
-.frame-ticks::after {
-  content: "";
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  pointer-events: none;
-}
-.frame-ticks::before {
-  top: -1px;
-  left: -1px;
-  border-top: 2px solid var(--amber);
-  border-left: 2px solid var(--amber);
-}
-.frame-ticks::after {
-  bottom: -1px;
-  right: -1px;
-  border-bottom: 2px solid var(--amber);
-  border-right: 2px solid var(--amber);
-}
-
-/* Motion language: one easing, one duration scale, transform-first.
-   --dur-1 feedback (press, toggles) · --dur-2 entrances · --dur-3 moments. */
+/* Motion: one easing, one duration scale. */
 :root {
-  --ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --dur-1: 120ms;
-  --dur-2: 300ms;
-  --dur-3: 500ms;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur-press: 140ms;
+  --dur-enter: 240ms;
+  --dur-route: 400ms;
 }
 
-/* Signature move: the developing wash. Amber latent field warms into the full
-   frame left-to-right with progress; content stays visible underneath. */
-.develop {
-  position: absolute;
-  inset: 0;
-  background: var(--wash);
-  border-right: 2px solid var(--amber);
-  transform-origin: right center;
-  transition: transform 0.45s var(--ease);
-  pointer-events: none;
+.pressable {
+  transition:
+    transform var(--dur-press) var(--ease),
+    background-color var(--dur-press) var(--ease),
+    border-color var(--dur-press) var(--ease),
+    color var(--dur-press) var(--ease),
+    box-shadow var(--dur-press) var(--ease);
 }
-.develop.done {
-  opacity: 0;
-  border-right-color: transparent;
-  transition: opacity 0.6s var(--ease);
+.pressable:active {
+  transform: scale(0.985);
 }
 
-/* Standard entrance: every section arrives the same way, once. */
 @keyframes rise-in {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
-.tray-in,
 .page-in {
-  animation: rise-in var(--dur-3) var(--ease) both;
+  /* Backwards, not both: a retained transform would become the containing
+     block for fixed mobile action bars and trap them at the page bottom. */
+  animation: rise-in var(--dur-enter) var(--ease) backwards;
 }
 
-/* Focal moment: the frame comes up in the fixer. The wash edge flashes green
-   once while sweeping off, and the thumbnail blooms to full color. */
-@keyframes fix-flash {
-  0% {
-    opacity: 1;
-    border-right-color: var(--fixer);
-  }
-  100% {
-    opacity: 0;
-    border-right-color: transparent;
-  }
-}
-.develop.fixed {
-  animation: fix-flash 0.9s var(--ease) both;
-}
-.bloom {
-  transition: filter 0.9s var(--ease);
-}
-
-/* Feedback: toast arrival (exit is instant — it simply times out). */
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(-8px);
   }
   to {
     opacity: 1;
@@ -186,11 +147,9 @@ textarea {
   }
 }
 .toast-in {
-  animation: toast-in var(--dur-2) var(--ease) both;
+  animation: toast-in var(--dur-enter) var(--ease) both;
 }
 
-/* Dialogs open with the same voice: fade + settle, and the backdrop fades in
-   behind them so the dim doesn't pop. */
 @keyframes dialog-in {
   from {
     opacity: 0;
@@ -202,10 +161,14 @@ textarea {
   }
 }
 dialog[open] {
-  animation: dialog-in var(--dur-2) var(--ease) both;
+  animation: dialog-in var(--dur-enter) var(--ease) both;
+}
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
 }
 dialog[open]::backdrop {
-  animation: backdrop-in var(--dur-2) var(--ease) both;
+  animation: backdrop-in var(--dur-enter) var(--ease) both;
 }
 @keyframes backdrop-in {
   from {
@@ -216,31 +179,7 @@ dialog[open]::backdrop {
   }
 }
 
-/* Pressable: uniform tactile acknowledgement for buttons and links. */
-.pressable {
-  transition: transform var(--dur-1) var(--ease), color var(--dur-1) var(--ease),
-    border-color var(--dur-1) var(--ease), background-color var(--dur-1) var(--ease);
-}
-.pressable:active {
-  transform: scale(0.98);
-}
-
-/* Attention, once: the save button glows so the next step is unmissable. */
-@keyframes pulse-once {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 transparent;
-  }
-  35% {
-    box-shadow: 0 0 0 5px var(--wash);
-  }
-}
-.pulse-once {
-  animation: pulse-once 1.4s var(--ease) 0.35s both;
-}
-
-/* Loading: a safelight sweep across the placeholder while the link is read. */
-@keyframes sweep {
+@keyframes shimmer-sweep {
   from {
     transform: translateX(-100%);
   }
@@ -256,32 +195,99 @@ dialog[open]::backdrop {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(100deg, transparent 20%, var(--wash) 50%, transparent 80%);
-  animation: sweep 1.3s var(--ease) infinite;
+  background: linear-gradient(100deg, transparent 20%, var(--accent-wash) 50%, transparent 80%);
+  animation: shimmer-sweep 1.4s var(--ease) infinite;
   pointer-events: none;
 }
 
+@keyframes stamp-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.stamp-in {
+  animation: stamp-in 280ms var(--ease) both;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes progress-slide {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(280%);
+  }
+}
+.progress-indeterminate {
+  animation: progress-slide 1.5s var(--ease) infinite;
+}
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+.skip-link {
+  position: fixed;
+  left: 12px;
+  top: 12px;
+  z-index: 100;
+  transform: translateY(-180%);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 12px 16px;
+  font-weight: 700;
+  box-shadow: var(--shadow);
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .develop,
-  .develop.fixed,
-  .tray-in,
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
   .page-in,
   .toast-in,
-  .pulse-once,
-  .shimmer::after {
+  .stamp-in,
+  .shimmer::after,
+  .spin,
+  .progress-indeterminate {
+    animation: none;
+  }
+  .pressable {
     transition: none;
-    animation: none;
-  }
-  dialog[open] {
-    animation: none;
-  }
-  dialog[open]::backdrop {
-    animation: none;
   }
   .pressable:active {
     transform: none;
   }
-  .bloom {
-    transition: none;
+  dialog[open],
+  dialog[open]::backdrop {
+    animation: none;
   }
 }

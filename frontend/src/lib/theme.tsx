@@ -22,7 +22,7 @@ function apply(mode: ThemeMode): "dark" | "light" {
   document.documentElement.dataset.theme = resolved;
   document
     .querySelector('meta[name="theme-color"]')
-    ?.setAttribute("content", resolved === "dark" ? "#12100c" : "#f5f1e6");
+    ?.setAttribute("content", resolved === "dark" ? "#14130f" : "#f3efe4");
   return resolved;
 }
 
