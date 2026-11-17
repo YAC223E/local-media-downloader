@@ -211,8 +211,12 @@ async def download_file(job_id: str, request: Request, check: bool = False):
             candidates.insert(0, Path(rec.root_dir).resolve())
         candidates.append(LEGACY_DOWNLOADS_DIR.resolve())
         target = None
+        # History rows may have been written on another OS (settings/history
+        # copied between Windows and Linux). Pathlib treats "\" as a literal
+        # filename character on POSIX, so normalize separators first.
+        rel_path = Path(rec.file_path.replace("\\", "/"))
         for root in candidates:
-            probe = (root / rec.file_path).resolve()
+            probe = (root / rel_path).resolve()
             # Block path traversal: the resolved file must stay inside its root.
             if root not in probe.parents and probe != root:
                 raise HTTPException(status_code=403, detail="Refused: file is outside the download folder.")

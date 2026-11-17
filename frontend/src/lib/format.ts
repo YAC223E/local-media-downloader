@@ -108,19 +108,19 @@ export function plainError(error: string, platform = "", url = ""): string {
   const siteName = site === "Media" ? "This site" : site;
   if (low.includes("timed out") || low.includes("timeout")) return "The internet was too slow — try again.";
   if (low.includes("private") || low.includes("login") || low.includes("cookies") || low.includes("sign in"))
-    return "This video needs a login — add a login file in Settings, then try again.";
+    return "This video needs a login — add a login file in Defaults, then try again.";
   if (low.includes("no video")) return "That post has no video in it — pick a post with a video.";
   if (low.includes("rate-limit") || low.includes("rate limit") || low.includes("too many requests"))
     return `${siteName} is limiting downloads right now — wait a few minutes and try again.`;
   if (low.includes("age") && (low.includes("restrict") || low.includes("confirm")))
-    return "This video is age-restricted — add a login file in Settings, then try again.";
+    return "This video is age-restricted — add a login file in Defaults, then try again.";
   if (low.includes("members") || low.includes("join"))
     return "This video is for channel members — try a public link or add a login file.";
   if (low.includes("not available") || low.includes("unavailable") || low.includes("removed"))
     return "This video isn't available anymore — try another link.";
   if (low.includes("geo") || low.includes("country"))
     return "This video isn't available in this country — try another link.";
-  if (low.includes("ffmpeg")) return "The video helper is missing on this laptop. Add it in Settings.";
+  if (low.includes("ffmpeg")) return "The video helper is missing on this laptop. Add it in Defaults.";
   if (low.includes("unsupported")) return "This link can't be downloaded.";
   return "The download stopped before the file was ready — try again.";
 }

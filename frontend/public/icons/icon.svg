@@ -1,19 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#14130F"/>
-  <g fill="none" stroke="#F8F4E9" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
-    <rect x="60" y="148" width="180" height="124" rx="14"/>
-    <path d="M34 300h232"/>
-    <rect x="360" y="112" width="104" height="224" rx="26"/>
-    <path d="M398 306h28"/>
-  </g>
-  <g fill="none" stroke="#F5C542" stroke-width="22" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M282 212h64"/>
-    <path d="M316 182l30 30-30 30"/>
-  </g>
-  <g stroke="#F5C542" fill="#F5C542">
-    <path d="M105 398h302" stroke-width="8" stroke-linecap="round"/>
-    <circle cx="96" cy="398" r="9" stroke="none"/>
-    <circle cx="256" cy="398" r="9" stroke="none"/>
-    <circle cx="416" cy="398" r="9" stroke="none"/>
+  <rect width="512" height="512" rx="112" fill="#E9551F"/>
+  <g transform="translate(112 112) scale(12)" fill="none" stroke="#171812" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3.5v10.5"/>
+    <path d="M8 10l4 4 4-4"/>
+    <path d="M4 19h16"/>
   </g>
 </svg>

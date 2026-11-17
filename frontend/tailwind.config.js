@@ -1,4 +1,4 @@
-/** Semantic tokens: every color is a CSS variable so the theme toggle repaints instantly. */
+/** Semantic tokens: every colour is a CSS variable so the theme toggle repaints instantly. */
 export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
@@ -11,6 +11,7 @@ export default {
         "line-strong": "var(--line-strong)",
         ink: "var(--ink)",
         muted: "var(--muted)",
+        faint: "var(--faint)",
         accent: "var(--accent)",
         accenthover: "var(--accent-hover)",
         onaccent: "var(--on-accent)",
@@ -22,36 +23,21 @@ export default {
         accentwash: "var(--accent-wash)",
         gowash: "var(--go-wash)",
         stopwash: "var(--stop-wash)",
+        infowash: "var(--info-wash)",
       },
       fontFamily: {
-        sans: [
-          "-apple-system",
-          "BlinkMacSystemFont",
-          '"Segoe UI"',
-          "Aptos",
-          "Roboto",
-          '"Helvetica Neue"',
-          "Arial",
-          "sans-serif",
-        ],
-        mono: [
-          '"Cascadia Mono"',
-          '"JetBrains Mono"',
-          "ui-monospace",
-          "SFMono-Regular",
-          "Consolas",
-          '"Liberation Mono"',
-          "monospace",
-        ],
+        sans: ['"Archivo Variable"', "Archivo", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ['"Azeret Mono Variable"', "Azeret Mono", "ui-monospace", "SFMono-Regular", "Consolas", "monospace"],
       },
       borderRadius: {
-        card: "18px",
-        field: "12px",
-        button: "10px",
+        card: "14px",
+        field: "10px",
+        button: "9px",
         pill: "999px",
       },
       boxShadow: {
         float: "var(--shadow)",
+        pop: "var(--shadow-pop)",
       },
     },
   },

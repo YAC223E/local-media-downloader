@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type Ref } from "react";
 import type { FormatOption, MediaInfo } from "../lib/api";
 import { fmtBytes, fmtDuration, languageName, platformKey, platformLabel } from "../lib/format";
 import { cn } from "../lib/utils";
-import { Button } from "./ui/button";
 import { Field } from "./ui/field";
 import { Icon } from "./ui/Icon";
 import { Segmented } from "./ui/segmented";
@@ -37,24 +36,19 @@ export function QualityPicker({
   preferred,
   defaultSubLang,
   defaultAudioQuality,
-  onDownload,
   onSelectionChange,
-  downloading,
   headingRef,
 }: {
   info: MediaInfo;
   preferred: string;
   defaultSubLang: string;
   defaultAudioQuality: string;
-  onDownload: (format: FormatOption, extra: DownloadExtra) => void;
   onSelectionChange?: (selection: QualitySelection) => void;
-  downloading: boolean;
   headingRef?: Ref<HTMLHeadingElement>;
 }) {
   const { formats, subtitles, automatic_captions: autoCaptions } = info;
   const choices = useMemo(() => buildChoices(formats, preferred), [formats, preferred]);
   const videos = useMemo(() => formats.filter((f) => f.kind === "video").slice(0, 12), [formats]);
-  const audios = useMemo(() => formats.filter((f) => f.kind === "audio").slice(0, 6), [formats]);
   const [picked, setPicked] = useState<string>(() => defaultFormatId(choices, formats, preferred));
   const [kbps, setKbps] = useState<string>(defaultAudioQuality || "320");
   const subOptions = useMemo(() => {
@@ -82,27 +76,32 @@ export function QualityPicker({
 
   useEffect(() => {
     if (!active || !extra) return;
-    onSelectionChange?.({ format: active, extra, title, meta });
+    const size = active.kind === "video" && active.filesize ? fmtBytes(active.filesize) : "";
+    onSelectionChange?.({ format: active, extra, title, meta: [meta, size].filter(Boolean).join(" · ") });
   }, [active, extra, title, meta, onSelectionChange]);
 
   if (!active || !extra) {
     return (
-      <section className="rounded-card border border-line bg-surface p-6 text-center">
-        <div className="mx-auto mb-3 grid h-11 w-11 place-items-center rounded-field bg-accentwash text-brand">
-          <Icon name="alert" size={22} />
+      <section className="rounded-card border border-line bg-surface p-6">
+        <div className="flex items-start gap-4">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-field bg-surface2 text-muted">
+            <Icon name="alert" size={21} />
+          </span>
+          <div>
+            <h2 className="text-[17px] font-semibold text-ink">No downloadable versions</h2>
+            <p className="mt-1 max-w-[46ch] text-[14px] text-muted">
+              This link didn't return a file we can save. Try another link.
+            </p>
+          </div>
         </div>
-        <h2 className="text-[17px] font-bold text-ink">No downloadable versions</h2>
-        <p className="mx-auto mt-1 max-w-[42ch] text-[15px] text-muted">
-          This link didn't return a file we can save. Try another link.
-        </p>
       </section>
     );
   }
 
   return (
     <section aria-label="Choose quality" className="overflow-hidden rounded-card border border-line bg-surface">
-      <div className="flex items-center gap-3 border-b border-line p-4">
-        <div className="h-16 w-28 shrink-0 overflow-hidden rounded-[10px] bg-surface2">
+      <div className="flex gap-4 border-b border-line p-4 sm:p-5">
+        <div className="h-[72px] w-[120px] shrink-0 overflow-hidden rounded-[8px] bg-surface2">
           {info.thumbnail ? (
             <img src={info.thumbnail} alt="" className="h-full w-full object-cover" loading="lazy" />
           ) : (
@@ -112,107 +111,111 @@ export function QualityPicker({
           )}
         </div>
         <div className="min-w-0 flex-1">
+          <p className="flex flex-wrap items-center gap-x-1.5 text-[12px] font-semibold text-muted">
+            <PlatformMark name={platformKey(info.platform, info.webpage_url)} size={14} />
+            <span>{platformLabel(info.platform, info.webpage_url)}</span>
+            {info.duration ? (
+              <>
+                <span aria-hidden="true">·</span>
+                <span className="mono text-[11px]">{fmtDuration(info.duration)}</span>
+              </>
+            ) : null}
+          </p>
           <h2
             ref={headingRef}
             tabIndex={-1}
-            className="line-clamp-2 text-[15px] font-bold leading-snug text-ink focus:outline-none"
+            className="mt-1 line-clamp-2 text-[17px] font-semibold leading-snug tracking-[-0.015em] text-ink focus:outline-none sm:text-[19px]"
           >
             {info.title}
           </h2>
-          <p className="mt-1 text-[13px] text-muted">
-            {platformLabel(info.platform, info.webpage_url)}
-            {info.duration ? ` · ${fmtDuration(info.duration)}` : ""}
-          </p>
+          {info.uploader ? <p className="mt-0.5 line-clamp-1 text-[13px] text-muted">{info.uploader}</p> : null}
         </div>
       </div>
 
-      <div className="border-b border-line px-4 py-3">
-        <h3 className="text-[15px] font-bold text-ink">Choose a copy</h3>
-        <p className="mt-0.5 text-[13px] text-muted">The laptop downloads this copy; then your phone can save it.</p>
-      </div>
+      <div className="p-4 sm:p-5">
+        <div className="flex items-baseline justify-between gap-3">
+          <h3 className="text-[15px] font-semibold text-ink">Available copies</h3>
+          <span className="mono text-[11px] text-faint">{choices.length} options</span>
+        </div>
+        <p className="mt-0.5 text-[13px] text-muted">The laptop downloads this copy. Your phone saves it after.</p>
 
-      <div role="radiogroup" aria-label="Quality" className="grid gap-2 p-4">
-        {choices.map((choice) => {
-          const selected = activeId === choice.format.format_id;
-          return (
-            <label
-              key={choice.key}
-              className={cn(
-                "pressable flex min-h-[68px] cursor-pointer items-center gap-3 rounded-field border p-3.5",
-                "focus-within:ring-2 focus-within:ring-focus focus-within:ring-offset-2 focus-within:ring-offset-surface",
-                selected ? "border-accent bg-accentwash" : "border-line-strong bg-surface hover:border-muted",
-              )}
-            >
-              <input
-                type="radio"
-                name="quick-quality"
-                checked={selected}
-                onChange={() => setPicked(choice.format.format_id)}
-                className="sr-only"
-              />
-              <span
-                aria-hidden="true"
+        <div role="radiogroup" aria-label="Quality" className="mt-3 overflow-hidden rounded-field border border-line-strong/60">
+          {choices.map((choice, index) => {
+            const selected = activeId === choice.format.format_id;
+            return (
+              <label
+                key={choice.key}
                 className={cn(
-                  "grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full border-2",
-                  selected ? "border-accent" : "border-line-strong",
+                  "pressable flex min-h-[64px] cursor-pointer items-center gap-3 px-3.5 py-3",
+                  "focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-focus",
+                  index > 0 && "border-t border-line",
+                  selected ? "bg-accentwash" : "hover:bg-surface2",
                 )}
               >
-                {selected ? <span className="h-3 w-3 rounded-full bg-accent" /> : null}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[15px] font-bold text-ink">{choice.title}</span>
-                <span className="block text-[13px] text-muted">{choiceMeta(choice, kbps)}</span>
-              </span>
-              {choice.key !== "audio" && choice.format.filesize ? (
-                <span className="mono shrink-0 text-[13px] text-muted">{fmtBytes(choice.format.filesize)}</span>
-              ) : null}
-            </label>
-          );
-        })}
+                <input
+                  type="radio"
+                  name="quick-quality"
+                  checked={selected}
+                  onChange={() => setPicked(choice.format.format_id)}
+                  className="sr-only"
+                />
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full border-2",
+                    selected ? "border-accent" : "border-line-strong",
+                  )}
+                >
+                  {selected ? <span className="h-2.5 w-2.5 rounded-full bg-accent" /> : null}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14px] font-semibold text-ink">{choice.title}</span>
+                  <span className="block text-[13px] text-muted">{choiceMeta(choice, kbps)}</span>
+                </span>
+                {choice.key !== "audio" && choice.format.filesize ? (
+                  <span className="mono shrink-0 text-[12px] text-muted">{fmtBytes(choice.format.filesize)}</span>
+                ) : null}
+              </label>
+            );
+          })}
+        </div>
+
+        {audioPicked ? (
+          <div className="mt-4">
+            <p className="mb-2 text-[13px] font-semibold text-ink">Audio quality</p>
+            <Segmented
+              label="Audio quality"
+              options={AUDIO_LEVELS.map((level) => ({ value: level.value, label: level.label }))}
+              value={kbps}
+              onChange={setKbps}
+              fullWidth
+            />
+            <p className="mt-2 text-[13px] text-muted">320k is the default. Lower saves a little space.</p>
+          </div>
+        ) : null}
+
+        {!audioPicked && subOptions.length > 0 ? (
+          <div className="mt-4">
+            <Field label="Subtitles" htmlFor="sub-lang" hint="Choose a language for this download.">
+              <Select id="sub-lang" value={subLang} onChange={(event) => setSubLang(event.target.value)}>
+                <option value="">No subtitles</option>
+                {subOptions.map((option) => (
+                  <option key={option.code} value={option.code}>
+                    {languageName(option.code)}
+                    {option.auto ? " · auto" : ""}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+        ) : null}
       </div>
 
-      {audioPicked ? (
-        <div className="px-4 pb-4">
-          <p className="mb-2 text-[14px] font-semibold text-ink">Audio quality</p>
-          <Segmented
-            label="Audio quality"
-            options={AUDIO_LEVELS.map((level) => ({ value: level.value, label: level.label }))}
-            value={kbps}
-            onChange={setKbps}
-            fullWidth
-          />
-          <p className="mt-2 text-[13px] text-muted">320k is the default. Lower saves a little space.</p>
-        </div>
-      ) : null}
-
-      {!audioPicked && subOptions.length > 0 ? (
-        <div className="px-4 pb-4">
-          <Field label="Subtitles" htmlFor="sub-lang" hint="Choose a language for this download.">
-            <Select id="sub-lang" value={subLang} onChange={(event) => setSubLang(event.target.value)}>
-              <option value="">No subtitles</option>
-              {subOptions.map((option) => (
-                <option key={option.code} value={option.code}>
-                  {languageName(option.code)}
-                  {option.auto ? " · auto" : ""}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </div>
-      ) : null}
-
-      <div className="hidden px-4 pb-4 md:block">
-        <Button onClick={() => onDownload(active, extra)} disabled={downloading} size="lg" className="flex w-full">
-          {downloading ? "Downloading…" : "Download"}
-        </Button>
-        <p className="mt-2 text-center text-[13px] text-muted">The laptop keeps working if you leave this page.</p>
-      </div>
-
-      {videos.length > 0 && (
+      {videos.length > 0 ? (
         <details className="group border-t border-line">
-          <summary className="flex min-h-[56px] cursor-pointer list-none items-center justify-between px-4 text-[14px] font-semibold text-ink hover:bg-surface2 [&::-webkit-details-marker]:hidden">
+          <summary className="flex min-h-[52px] cursor-pointer items-center justify-between px-4 text-[13px] font-semibold text-ink hover:bg-surface2 sm:px-5">
             Show all formats
-            <Icon name="chevronDown" size={18} className="text-muted transition-transform group-open:rotate-180" />
+            <Icon name="chevronDown" size={17} className="text-muted transition-transform group-open:rotate-180" />
           </summary>
           <div className="border-t border-line px-2 pb-2">
             <ol aria-label="Video formats">
@@ -227,7 +230,7 @@ export function QualityPicker({
             </ol>
           </div>
         </details>
-      )}
+      ) : null}
     </section>
   );
 }
@@ -237,7 +240,7 @@ function FormatRow({ format, checked, onPick }: { format: FormatOption; checked:
     <li>
       <label
         className={cn(
-          "flex min-h-[56px] cursor-pointer items-center gap-3 rounded-[10px] px-2 py-2 transition-colors",
+          "flex min-h-11 cursor-pointer items-center gap-3 rounded-[7px] px-2 py-2 transition-colors",
           checked ? "bg-accentwash" : "hover:bg-surface2",
         )}
       >
@@ -249,10 +252,10 @@ function FormatRow({ format, checked, onPick }: { format: FormatOption; checked:
           className="h-4 w-4 shrink-0 accent-[var(--accent)]"
         />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[14px] font-semibold text-ink">{format.label}</span>
-          <span className="mono block truncate text-[12px] text-muted">{formatMeta(format)}</span>
+          <span className="block truncate text-[13px] font-semibold text-ink">{format.label}</span>
+          <span className="mono block truncate text-[11px] text-muted">{formatMeta(format)}</span>
         </span>
-        {format.filesize ? <span className="mono shrink-0 text-[12px] text-muted">{fmtBytes(format.filesize)}</span> : null}
+        {format.filesize ? <span className="mono shrink-0 text-[11px] text-muted">{fmtBytes(format.filesize)}</span> : null}
       </label>
     </li>
   );
@@ -272,16 +275,29 @@ function buildChoices(formats: FormatOption[], preferred: string): Choice[] {
     out.push({ key: "best", title: bestTitle, format: best });
   }
 
-  const keyOf = (format: FormatOption): number => format.filesize ?? (format.tbr ? (format.tbr * 1000) / 8 : Infinity);
-  const smallest = [...videoPool].sort((a, b) => keyOf(a) - keyOf(b))[0];
-  if (smallest && smallest.format_id !== best?.format_id && smallest.filesize) {
-    if (best?.filesize == null || smallest.filesize < best.filesize) {
-      out.push({ key: "small", title: "Smaller file", format: smallest });
-    }
-  }
+  const smaller = smallerVideo(videoPool, best);
+  if (smaller) out.push({ key: "small", title: "Smaller file", format: smaller });
 
   if (audios[0]) out.push({ key: "audio", title: videoPool.length ? "Audio only" : "Audio", format: audios[0] });
   return out;
+}
+
+function smallerVideo(pool: FormatOption[], best: FormatOption | undefined): FormatOption | undefined {
+  if (!best) return undefined;
+  const bestHeight = heightOf(best);
+  const below = pool.filter(
+    (format) => format.format_id !== best.format_id && heightOf(format) > 0 && heightOf(format) < bestHeight,
+  );
+  if (!below.length) return undefined;
+  // Aim for a usable 720p copy rather than the smallest stream on the page:
+  // a 4K source should not offer 144p as its only "smaller" option.
+  return [...below].sort((a, b) => {
+    const byTarget = Math.abs(heightOf(a) - 720) - Math.abs(heightOf(b) - 720);
+    if (byTarget !== 0) return byTarget;
+    const byHeight = heightOf(b) - heightOf(a);
+    if (byHeight !== 0) return byHeight;
+    return (a.filesize ?? Infinity) - (b.filesize ?? Infinity);
+  })[0];
 }
 
 function defaultFormatId(choices: Choice[], formats: FormatOption[], preferred: string): string {

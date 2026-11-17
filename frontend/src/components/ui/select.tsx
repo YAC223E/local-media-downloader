@@ -10,9 +10,9 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
         <select
           ref={ref}
           className={cn(
-            "h-[52px] w-full appearance-none rounded-field border border-line-strong bg-surface pl-4 pr-11 text-base text-ink",
-            "hover:border-muted focus:border-accent",
-            "disabled:cursor-not-allowed disabled:opacity-60",
+            "h-12 w-full appearance-none rounded-field border border-line-strong bg-surface pl-3.5 pr-11 text-[15px] text-ink",
+            "hover:border-muted focus:border-ink",
+            "disabled:cursor-not-allowed disabled:bg-surface2 disabled:text-muted",
           )}
           {...props}
         >
@@ -20,8 +20,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
         </select>
         <Icon
           name="chevronDown"
-          size={18}
-          className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted"
+          size={17}
+          className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted"
         />
       </div>
     );

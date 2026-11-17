@@ -30,12 +30,14 @@ export function SaveLink({
   children,
   variant = "primary",
   size = "md",
+  goneLabel = "File removed from this laptop",
 }: {
   jobId: string;
   className?: string;
   children?: ReactNode;
   variant?: ButtonVariant;
   size?: ButtonSize;
+  goneLabel?: string;
 }) {
   const toast = useToast();
   const { refresh } = useJobs();
@@ -85,7 +87,7 @@ export function SaveLink({
           return;
         }
       } catch {
-        // The job aged out of the live list; refresh Library anyway.
+        // The job aged out of the live list; refresh the shelf anyway.
         void finishTransfer();
         return;
       }
@@ -118,7 +120,7 @@ export function SaveLink({
         title: gone ? "Already on your device" : "Can't save this one",
         body: gone
           ? "The laptop removed its copy after the first save — check your Downloads folder."
-          : "The file isn't on the laptop anymore. Download it again from Library.",
+          : "The file isn't on the laptop anymore. Add the link again from the shelf.",
         tone: gone ? "info" : "err",
       });
       setChecking(false);
@@ -135,7 +137,7 @@ export function SaveLink({
         )}
       >
         <Icon name="alert" size={16} />
-        File removed from this laptop
+        {goneLabel}
       </span>
     );
   }
@@ -147,7 +149,7 @@ export function SaveLink({
       onClick={save}
       aria-busy={checking}
       aria-disabled={checking}
-      className={buttonStyles({ variant, size, className: checking ? `opacity-60 ${className ?? ""}` : className })}
+      className={buttonStyles({ variant, size, className: cn(className, checking && "opacity-60") })}
     >
       {checking ? (
         <>

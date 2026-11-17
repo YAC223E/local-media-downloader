@@ -15,7 +15,7 @@ export function StatusPill({
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center gap-2 rounded-pill px-2.5 py-1 text-[13px] font-semibold",
+        "inline-flex shrink-0 items-center gap-1.5 rounded-pill px-2 py-0.5 text-[12px] font-semibold leading-5",
         tone === "working" && "bg-accentwash text-brand",
         tone === "go" && "bg-gowash text-go",
         tone === "stop" && "bg-stopwash text-stop",

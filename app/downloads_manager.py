@@ -254,10 +254,13 @@ class Manager:
                 job.eta = d.get("eta")
                 if d.get("filename"):
                     job.filename = Path(str(d["filename"])).name
+                # First real transfer progress means the probe is done, even
+                # when yt-dlp already knows the total size. Without this the
+                # row kept saying "Reading link" for the whole download.
+                if job.status in {"queued", "extracting"}:
+                    job.status = "downloading"
                 if total:
                     job.progress = max(0.0, min(1.0, done / total))
-                elif job.status != "merging":
-                    job.status = "downloading"
                 job.touch()
 
             def on_status(s: str) -> None:

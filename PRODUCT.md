@@ -34,10 +34,10 @@ Confirmed behavior that a redesign must preserve:
 - Paste or drop a video/audio URL, inspect the media, and start a download.
 - Video quality choices and an audio-only path; default audio quality is 320 kbps. Per-download subtitle language choice remains available.
 - Playlist detection with an option to download only new episodes.
-- Live progress for queued, extracting, downloading, merging, finished, cancelled, and failed jobs. Jobs continue across navigation and are visible in a Downloads view.
+- Live progress for queued, extracting, downloading, merging, finished, cancelled, and failed jobs. Jobs continue across navigation and are visible on the one shelf board.
 - Finished downloads can be saved to the current device. The save flow must preflight the file's existence so a missing file never downloads as a JSON error body. Show a distinct "already on your device" state when the laptop copy was removed after transfer.
-- History stores finished and failed items with title, platform, thumbnail, size, date, status, and actions to save, download again, or delete. It can be searched, filtered, and cleared.
-- Settings persist: theme (System / Dark / Light), preferred video quality, default audio-only mode, 320/192/128 kbps audio, download folder, concurrent limit, auto-delete after phone save, subtitle mode and language, auto-caption fallback, cookie upload for private videos, thumbnail/metadata embedding, and an optional FFmpeg path.
+- The shelf board merges live jobs with finished and failed history: title, platform, thumbnail, size, date, status, and actions to save, download again, or delete. It can be searched, filtered, and cleared. Removing a row never deletes a file.
+- Defaults persist and are edited in a sheet over the shelf: theme (System / Dark / Light), preferred video quality, default audio-only mode, 320/192/128 kbps audio, download folder, concurrent limit, auto-delete after phone save, subtitle mode and language, auto-caption fallback, cookie upload for private videos, thumbnail/metadata embedding, and an optional FFmpeg path.
 - The service reports FFmpeg readiness and LAN URLs.
 - The interface must be usable on a phone: large touch targets, minimal reading, clear primary actions, no hover-only affordances.
 - The visual language must stay coherent across dark, light, and system themes.
@@ -67,7 +67,7 @@ Known technical constraints:
 
 ## Product Principles
 
-1. **One obvious next step.** At every moment the interface should make the next action clear without a manual. On Home that is paste/find; after a result it is choose quality/download; after a download it is save.
+1. **One obvious next step.** At every moment the interface should make the next action clear without a manual. On the shelf that is paste/fetch; after a result it is choose quality/download; after a download it is save.
 2. **Plain words over system vocabulary.** Say "Save to this device", "Download again", "Needs a login", not "frame", "sleeve", "develop", or raw engine codes.
 3. **The phone is the remote, the laptop is the vault.** Progress belongs to the laptop; saving belongs to the phone. Make that division legible.
 4. **Calm, honest feedback.** Show real states and real numbers. Never fake progress, and never leave an action looking available when the file is gone.

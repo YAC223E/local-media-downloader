@@ -19,7 +19,7 @@ interface JobsCtx {
 const Ctx = createContext<JobsCtx | null>(null);
 export const useJobs = () => useContext(Ctx)!;
 
-/** Live downloads shared by Home and the Downloads tab (survives nav). */
+/** Live downloads shared by the shelf and the handoff panel (survives nav). */
 export function JobsProvider({ children }: { children: React.ReactNode }) {
   const toast = useToast();
   const [jobs, setJobs] = useState<JobInfo[]>([]);

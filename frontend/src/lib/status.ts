@@ -1,4 +1,4 @@
-/** Plain words for engine states, one voice across Home, Downloads and Library. */
+/** Plain words for engine states, one voice across the shelf and handoff. */
 export const STATUS_WORDS: Record<string, string> = {
   queued: "Waiting",
   active: "Working",

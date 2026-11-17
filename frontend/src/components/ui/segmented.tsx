@@ -29,7 +29,7 @@ export function Segmented<T extends string>({
       role="group"
       aria-label={label}
       className={cn(
-        "inline-flex rounded-field border border-line-strong bg-surface2 p-1",
+        "inline-flex rounded-field border border-line bg-surface2 p-1",
         fullWidth && "flex w-full",
         className,
       )}
@@ -43,10 +43,10 @@ export function Segmented<T extends string>({
             aria-pressed={active}
             onClick={() => onChange(option.value)}
             className={cn(
-              "pressable inline-flex items-center justify-center gap-1.5 rounded-[9px] font-semibold",
+              "pressable inline-flex min-h-11 items-center justify-center gap-1.5 rounded-[7px] font-semibold",
               fullWidth && "flex-1",
-              size === "sm" ? "min-h-[44px] px-3 text-[13px]" : "min-h-[44px] px-4 text-sm",
-              active ? "bg-accent text-onaccent" : "text-muted hover:text-ink",
+              size === "sm" ? "px-2.5 text-[13px]" : "px-3.5 text-[13px]",
+              active ? "bg-ink text-ground" : "text-muted hover:bg-surface/60 hover:text-ink",
             )}
           >
             {option.icon}

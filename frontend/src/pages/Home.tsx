@@ -1,27 +1,44 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type FormEvent,
+} from "react";
 import { api, type AppSettings, type FormatOption, type JobInfo, type MediaInfo } from "../lib/api";
 import { useJobs } from "../lib/jobs";
-import { platformKey } from "../lib/format";
+import { fmtBytes } from "../lib/format";
 import { transferLabel, useSavedOnDevice } from "../lib/saves";
+import { useShelfData } from "../lib/shelf";
 import { cn } from "../lib/utils";
-import { PageHeader } from "../components/PageHeader";
 import { ErrorNote } from "../components/ErrorNote";
 import { PlaylistCard } from "../components/PlaylistCard";
 import { QualityPicker, type DownloadExtra, type QualitySelection } from "../components/QualityPicker";
-import { ReadyResume } from "../components/ReadyResume";
-import { RouteCard } from "../components/RouteCard";
+import { HandoffPanel } from "../components/HandoffPanel";
 import { SaveLink } from "../components/SaveLink";
-import { PlatformMark } from "../components/PlatformMark";
-import { Button } from "../components/ui/button";
+import { ShelfBoard } from "../components/ShelfBoard";
+import { Progress } from "../components/Progress";
+import { Button, buttonStyles } from "../components/ui/button";
 import { Icon, Spinner } from "../components/ui/Icon";
 import { useToast } from "../components/Toaster";
 
 const LIVE = ["queued", "extracting", "downloading", "merging", "active"];
 
-/** Home: paste → choose → save. The whole journey is visible before it starts. */
-export function Home({ settings, onLaunched }: { settings: AppSettings | null; onLaunched: () => void }) {
+/** The whole product: one shelf, one place to add a link, one place to save. */
+export function Home({
+  settings,
+  onLaunched,
+  refreshKey = 0,
+}: {
+  settings: AppSettings | null;
+  onLaunched: () => void;
+  refreshKey?: number;
+}) {
   const preferredQuality = settings?.default_to_audio ? "audio" : (settings?.preferred_quality ?? "best");
   const { jobs, start, startPlaylist, cancel } = useJobs();
+  const shelf = useShelfData(refreshKey);
   const toast = useToast();
   const [url, setUrl] = useState("");
   const [fetching, setFetching] = useState(false);
@@ -41,15 +58,9 @@ export function Home({ settings, onLaunched }: { settings: AppSettings | null; o
   const transferText = transferLabel(savedHere);
   const liveJob = !!job && LIVE.includes(job.status);
   const failedJob = job?.status === "error" || job?.status === "cancelled";
-  const finishedNotSaved = job?.status === "finished" && !job.transferred;
+  const arrived = job?.status === "finished" && (!!job.transferred || savedHere);
+  const finishedNotSaved = job?.status === "finished" && !arrived;
   const downloading = starting || liveJob;
-  const readyJob = useMemo(
-    () =>
-      [...jobs]
-        .reverse()
-        .find((entry) => entry.status === "finished" && !entry.transferred && !entry.is_parent) ?? null,
-    [jobs],
-  );
 
   useEffect(() => {
     if (!lastJobId.current) return;
@@ -75,33 +86,30 @@ export function Home({ settings, onLaunched }: { settings: AppSettings | null; o
     return () => window.clearTimeout(timer);
   }, [info?.id]);
 
-  const fetchInfo = useCallback(
-    async (raw: string) => {
-      const target = raw.trim();
-      if (!target) {
-        setClipboardNote("Paste a link first — copy a video or audio URL, then tap Find.");
-        return;
-      }
-      setFetching(true);
-      setFetchError(null);
-      setClipboardNote(null);
-      setInfo(null);
-      setJob(null);
-      setSelection(null);
-      lastJobId.current = null;
-      setUrl(target);
-      try {
-        const found = await api.fetchInfo(target);
-        setInfo(found);
-        if (found.webpage_url) setUrl(found.webpage_url);
-      } catch (error) {
-        setFetchError(error instanceof Error ? error.message : "The link didn't return a video or audio file.");
-      } finally {
-        setFetching(false);
-      }
-    },
-    [toast],
-  );
+  const fetchInfo = useCallback(async (raw: string) => {
+    const target = raw.trim();
+    if (!target) {
+      setClipboardNote("Paste a link first — copy a video or audio URL, then tap Find.");
+      return;
+    }
+    setFetching(true);
+    setFetchError(null);
+    setClipboardNote(null);
+    setInfo(null);
+    setJob(null);
+    setSelection(null);
+    lastJobId.current = null;
+    setUrl(target);
+    try {
+      const found = await api.fetchInfo(target);
+      setInfo(found);
+      if (found.webpage_url) setUrl(found.webpage_url);
+    } catch (error) {
+      setFetchError(error instanceof Error ? error.message : "The link didn't return a video or audio file.");
+    } finally {
+      setFetching(false);
+    }
+  }, []);
 
   const find = useCallback(
     (event?: FormEvent) => {
@@ -164,7 +172,7 @@ export function Home({ settings, onLaunched }: { settings: AppSettings | null; o
       if (!info?.is_playlist || starting) return;
       const fresh = onlyNew ? info.entries.filter((entry) => !entry.have_it) : info.entries.filter((entry) => entry.url);
       if (!fresh.length) {
-        toast({ title: "Nothing new", body: "Every item is already in your Library.", tone: "info" });
+        toast({ title: "Nothing new", body: "Every item is already in your shelf list.", tone: "info" });
         return;
       }
       setStarting(true);
@@ -208,6 +216,12 @@ export function Home({ settings, onLaunched }: { settings: AppSettings | null; o
     inputRef.current?.focus();
   };
 
+  const focusInput = useCallback(() => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+    window.setTimeout(() => inputRef.current?.focus({ preventScroll: true }), reduce ? 0 : 320);
+  }, []);
+
   const drop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setDragging(false);
@@ -217,200 +231,215 @@ export function Home({ settings, onLaunched }: { settings: AppSettings | null; o
     if (text) void fetchInfo(text);
   };
 
-  const title = liveJob
-    ? job?.status === "queued"
-      ? "Waiting to start."
-      : "Downloading."
-    : finishedNotSaved
-      ? "Ready to save."
-      : job?.status === "finished" && job.transferred
-        ? `${transferText}.`
-        : failedJob
-          ? "That didn't work."
-          : info
-            ? "Choose a download."
-            : "Save it to your phone.";
-
-  const description = liveJob
-    ? "The laptop is fetching this one. You can leave this page."
-    : finishedNotSaved
-      ? "Your file is on this laptop. Save it to this device."
-      : job?.status === "finished" && job.transferred
-        ? savedHere
-          ? "This file is already on this phone. The laptop copy may be removed."
-          : "This file was saved on another device. The laptop copy may be removed."
-        : failedJob
-          ? "Read the message below, then try again."
-          : info?.is_playlist
-            ? "New episodes only, or the whole list."
-            : info
-              ? "The laptop downloads this copy; then your phone can save it."
-              : "Paste a link. We'll fetch it on this laptop, then hand it to your phone.";
-
   const showMobileBar =
     !!info &&
-    !info.is_playlist &&
-    !liveJob &&
-    !!selection &&
-    (finishedNotSaved || failedJob || !job);
+    (liveJob || (info.is_playlist ? !!job : !!selection && (finishedNotSaved || failedJob || !job)));
+  const pct = job?.is_parent
+    ? job.children_total
+      ? (job.children_done / job.children_total) * 100
+      : Math.round((job.progress ?? 0) * 100)
+    : Math.round((job?.progress ?? 0) * 100);
+  const liveHeadline = job?.is_parent
+    ? "Playlist on the laptop"
+    : job?.status === "queued"
+      ? "Waiting for the laptop"
+      : job?.status === "extracting"
+        ? "Reading the link"
+        : job?.status === "merging"
+          ? "Finishing the file"
+          : "Fetching on the laptop";
+  const liveMeta = job?.is_parent
+    ? `${job.children_done} of ${job.children_total} saved`
+    : `${pct}%${job?.total_bytes ? ` · ${fmtBytes(job.downloaded_bytes)} of ${fmtBytes(job.total_bytes)}` : ""}`;
 
   return (
-    <div className={cn(showMobileBar && "pb-16 md:pb-0")}>
+    <div className={cn(showMobileBar && "pb-32 lg:pb-0")}>
       <p className="sr-only" role="status" aria-live="polite">
         {fetching ? "Reading the link." : info ? `Link ready. ${info.title}. Choose a download.` : ""}
       </p>
-      <PageHeader title={title} description={description} />
 
-      <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
-        <div className="grid min-w-0 content-start gap-5">
-          <div
-            className={cn(
-              "min-w-0 rounded-card border border-line bg-surface p-3 transition-colors sm:p-4",
-              dragging && "border-accent ring-2 ring-focus",
-            )}
-            onDragEnter={(event) => {
-              event.preventDefault();
-              setDragging(true);
-            }}
-            onDragOver={(event) => {
-              event.preventDefault();
-              setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={drop}
-          >
-            <form onSubmit={find} className="min-w-0">
-              <label htmlFor="link-input" className="sr-only">
-                Video or audio link
-              </label>
-              <div className="flex min-w-0 items-center gap-2 rounded-field border border-line-strong bg-surface px-2 focus-within:border-accent focus-within:ring-2 focus-within:ring-focus">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[9px] bg-surface2 text-brand">
-                  <PlatformMark name={platformKey(info?.platform ?? "", url)} size={21} />
-                </span>
-                <input
-                  ref={inputRef}
-                  id="link-input"
-                  size={1}
-                  value={url}
-                  onChange={(event) => {
-                    setUrl(event.target.value);
-                    if (fetchError) setFetchError(null);
-                    if (clipboardNote) setClipboardNote(null);
-                  }}
-                  placeholder={dragging ? "Drop the link here" : "Paste a video or audio link"}
-                  inputMode="url"
-                  autoComplete="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                  className="h-[52px] min-w-0 flex-1 bg-transparent px-1 text-base text-ink placeholder:text-muted focus-visible:outline-none"
-                />
-                {url ? (
-                  <button
-                    type="button"
-                    onClick={clear}
-                    aria-label="Clear link"
-                    className="pressable grid h-11 w-11 shrink-0 place-items-center rounded-[9px] text-muted hover:bg-surface2 hover:text-ink"
-                  >
-                    <Icon name="close" size={17} />
-                  </button>
-                ) : null}
-              </div>
-
-              <div className="mt-3 flex gap-2">
-                <Button variant="secondary" onClick={paste} className="flex-1 sm:flex-none">
-                  <Icon name="paste" size={18} />
-                  Paste
-                </Button>
-                <Button type="submit" disabled={fetching || !url.trim()} className="flex-1 sm:min-w-[136px] sm:flex-none">
-                  {fetching ? <Spinner size={18} className="spin" /> : <Icon name="link" size={18} />}
-                  {fetching ? "Reading…" : "Find"}
-                </Button>
-              </div>
-            </form>
-
-            {fetchError ? (
-              <div role="alert" className="mt-3 rounded-field border border-stop/40 bg-stopwash px-3 py-2.5">
-                <p className="text-[13px] font-semibold text-stop">Couldn't read that link</p>
-                <ErrorNote error={fetchError} className="mt-0.5" />
-              </div>
-            ) : null}
-            {clipboardNote ? (
-              <p role="status" className="mt-2 px-1 text-[13px] leading-snug text-muted">
-                {clipboardNote}
-              </p>
-            ) : null}
-
-            <div className="mt-3 grid gap-1 px-1">
-              <p className="text-[13px] text-muted">YouTube, TikTok, Instagram, Facebook and more.</p>
-              <p className="flex items-center gap-1.5 text-[13px] text-muted">
-                <Icon name="wifi" size={15} className="text-brand" />
-                Stays on this laptop and your Wi-Fi.
-              </p>
-            </div>
+      <div
+        onDragEnter={(event) => {
+          event.preventDefault();
+          setDragging(true);
+        }}
+        onDragOver={(event) => {
+          event.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false);
+        }}
+        onDrop={drop}
+      >
+        <header className="shelf-hero">
+          <div className="shelf-hero__copy">
+            <h1 className="shelf-title">
+              Your shelf<span className="text-brand">.</span>
+            </h1>
+            <p className="shelf-lede">
+              Finished files wait here on the laptop. Save one to any phone on this Wi-Fi.
+            </p>
           </div>
 
-          {!info && !job && !fetching ? (
-            readyJob ? (
-              <ReadyResume job={readyJob} />
-            ) : (
-              <div className="lg:hidden">
-                <RouteCard info={null} job={null} />
-              </div>
-            )
-          ) : null}
-          {fetching ? <FetchSkeleton /> : null}
+          <div className="shelf-stats" aria-label="Shelf status">
+            <div className="shelf-stat">
+              <span className="shelf-stat__n">{shelf.counts.ready}</span>
+              <span className="shelf-stat__label">Ready now</span>
+            </div>
+            <div className="shelf-stat">
+              <span className="shelf-stat__n">{shelf.counts.saved}</span>
+              <span className="shelf-stat__label">On a phone</span>
+            </div>
+          </div>
+        </header>
 
-          {info?.is_playlist ? (
-            <PlaylistCard
-              info={info}
-              downloading={downloading}
-              onDownload={launchPlaylist}
-              headingRef={resultHeadingRef}
-            />
-          ) : null}
+        <form onSubmit={find} aria-label="Add to the shelf" className="shelf-dock">
+          <div className="shelf-dock__label">
+            <Icon name="plus" size={18} />
+            <strong>Add to the shelf</strong>
+          </div>
 
-          {info && !info.is_playlist ? (
-            <QualityPicker
-              key={info.id}
-              info={info}
-              preferred={preferredQuality}
-              defaultSubLang={settings?.subtitle_lang ?? "en"}
-              defaultAudioQuality={settings?.audio_quality ?? "320"}
-              onDownload={launchSingle}
-              onSelectionChange={onSelectionChange}
-              downloading={downloading}
-              headingRef={resultHeadingRef}
+          <div className={cn("shelf-dock__field", dragging && "is-dragging")}>
+            <Icon name="link" size={20} className="shrink-0 text-muted" />
+            <label htmlFor="shelf-link" className="sr-only">
+              Video or audio link
+            </label>
+            <input
+              ref={inputRef}
+              id="shelf-link"
+              value={url}
+              onChange={(event) => setUrl(event.target.value)}
+              placeholder={dragging ? "Drop the link here" : "Paste a video or audio link"}
+              inputMode="url"
+              autoComplete="off"
+              autoCapitalize="off"
+              spellCheck={false}
             />
+            {url ? (
+              <button type="button" onClick={clear} aria-label="Clear link" className="shelf-dock__clear">
+                <Icon name="close" size={18} />
+              </button>
+            ) : null}
+          </div>
+
+          <div className="shelf-dock__actions">
+            <button type="button" onClick={paste} className="shelf-dock__action">
+              <Icon name="paste" size={17} />
+              Paste
+            </button>
+            <button
+              type="submit"
+              disabled={fetching || !url.trim()}
+              className="shelf-dock__action shelf-dock__action--go"
+            >
+              {fetching ? <Spinner size={17} className="spin" /> : <Icon name="download" size={17} />}
+              {fetching ? "Reading" : "Fetch"}
+            </button>
+          </div>
+        </form>
+
+        <div aria-live="polite">
+          {fetchError ? (
+            <div role="alert" className="border-x border-b border-line bg-stopwash px-4 py-3">
+              <p className="text-[13px] font-semibold text-stop">Couldn't read that link</p>
+              <ErrorNote error={fetchError} className="mt-1" />
+            </div>
+          ) : null}
+          {clipboardNote ? (
+            <p role="status" className="border-x border-b border-line bg-surface px-4 py-3 text-[13px] leading-snug text-muted">
+              {clipboardNote}
+            </p>
           ) : null}
         </div>
+      </div>
 
-        <div
-          ref={resultRef}
-          className={cn("min-w-0 scroll-mt-24", !info && !job && "hidden lg:block", "lg:sticky lg:top-24 lg:self-start")}
-        >
-          <RouteCard
-            info={info}
-            job={job}
-            onCancel={cancelJob}
-            onDownloadAgain={
-              info?.is_playlist
-                ? () => launchPlaylist(false)
-                : selection
-                  ? () => launchSingle(selection.format, selection.extra)
-                  : undefined
-            }
-          />
+      {fetching ? <FetchSkeleton /> : null}
+
+      {info ? (
+        <div ref={resultRef} className="shelf-choose scroll-mt-24">
+          <div className="shelf-choose__rule">
+            <span>Now choose a copy</span>
+          </div>
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start xl:grid-cols-[minmax(0,1fr)_360px] xl:gap-8">
+            <div className="min-w-0">
+              {info.is_playlist ? (
+                <PlaylistCard
+                  info={info}
+                  downloading={downloading}
+                  onDownload={launchPlaylist}
+                  headingRef={resultHeadingRef}
+                />
+              ) : (
+                <QualityPicker
+                  key={info.id}
+                  info={info}
+                  preferred={preferredQuality}
+                  defaultSubLang={settings?.subtitle_lang ?? "en"}
+                  defaultAudioQuality={settings?.audio_quality ?? "320"}
+                  onSelectionChange={onSelectionChange}
+                  headingRef={resultHeadingRef}
+                />
+              )}
+            </div>
+
+            <div className="min-w-0 lg:sticky lg:top-20 lg:self-start">
+              <HandoffPanel
+                info={info}
+                job={job}
+                selection={selection}
+                downloading={downloading}
+                onCancel={cancelJob}
+                onDownload={
+                  info.is_playlist
+                    ? undefined
+                    : selection
+                      ? () => launchSingle(selection.format, selection.extra)
+                      : undefined
+                }
+                onDownloadAgain={
+                  info.is_playlist
+                    ? () => launchPlaylist(false)
+                    : selection
+                      ? () => launchSingle(selection.format, selection.extra)
+                      : undefined
+                }
+              />
+            </div>
+          </div>
         </div>
+      ) : null}
+
+      <div className="mt-8">
+        <ShelfBoard shelf={shelf} onPasteAgain={focusInput} />
       </div>
 
       {showMobileBar ? (
         <div
-          className="fixed inset-x-0 z-30 border-t border-line bg-surface px-4 py-3 shadow-float md:hidden"
-          style={{ bottom: "calc(var(--nav-h) + env(safe-area-inset-bottom))" }}
+          className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface px-4 pb-3 pt-3 shadow-float lg:hidden"
+          style={{ paddingBottom: "calc(12px + env(safe-area-inset-bottom))" }}
         >
-          <div className="mx-auto flex max-w-6xl items-center gap-3">
-            {finishedNotSaved && job ? (
+          <div className="mx-auto max-w-[1180px]">
+            {liveJob && job ? (
               <>
+                <div className="flex items-center gap-3">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[8px] bg-accentwash text-brand">
+                    <Spinner size={17} className="spin" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-semibold text-ink">{liveHeadline}</p>
+                    <p aria-live="polite" className="mono truncate text-[11px] text-muted">
+                      {liveMeta}
+                    </p>
+                  </div>
+                  <a href="#shelf" className={buttonStyles({ variant: "ghost", size: "sm" })}>
+                    Shelf
+                  </a>
+                </div>
+                <Progress value={pct} label={liveHeadline} className="mt-2.5" />
+              </>
+            ) : finishedNotSaved && job && !info.is_playlist ? (
+              <div className="flex items-center gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13px] font-semibold text-ink">Ready on this laptop</p>
                   <p className="truncate text-[12px] text-muted">Save it to this device.</p>
@@ -419,9 +448,31 @@ export function Home({ settings, onLaunched }: { settings: AppSettings | null; o
                   <Icon name="save" size={17} />
                   Save
                 </SaveLink>
-              </>
+              </div>
+            ) : info.is_playlist ? (
+              <div className="flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-semibold text-ink">
+                    {failedJob ? "That didn't work." : "Playlist finished"}
+                  </p>
+                  <p className="truncate text-[12px] text-muted">
+                    {failedJob
+                      ? "Try the whole list again."
+                      : `${job?.children_done ?? 0} of ${job?.children_total ?? 0} saved — save each file from the shelf.`}
+                  </p>
+                </div>
+                {failedJob ? (
+                  <Button size="md" onClick={() => launchPlaylist(false)} disabled={downloading} className="shrink-0">
+                    Try again
+                  </Button>
+                ) : (
+                  <a href="#shelf" className={buttonStyles({ variant: "secondary", size: "md" })}>
+                    Shelf
+                  </a>
+                )}
+              </div>
             ) : selection ? (
-              <>
+              <div className="flex items-center gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13px] font-semibold text-ink">{selection.title}</p>
                   <p className="truncate text-[12px] text-muted">{selection.meta}</p>
@@ -434,7 +485,7 @@ export function Home({ settings, onLaunched }: { settings: AppSettings | null; o
                 >
                   {failedJob ? "Try again" : "Download"}
                 </Button>
-              </>
+              </div>
             ) : null}
           </div>
         </div>
@@ -445,17 +496,19 @@ export function Home({ settings, onLaunched }: { settings: AppSettings | null; o
 
 function FetchSkeleton() {
   return (
-    <div className="overflow-hidden rounded-card border border-line bg-surface" aria-busy="true">
-      <div className="flex items-center gap-3 p-4">
-        <div className="shimmer h-16 w-28 shrink-0 rounded-[10px] bg-surface2" />
+    <div className="mt-6 overflow-hidden rounded-card border border-line bg-surface" aria-busy="true">
+      <div className="flex items-center gap-4 border-b border-line p-4 sm:p-5">
+        <div className="shimmer h-[72px] w-[120px] shrink-0 rounded-[8px] bg-surface2" />
         <div className="min-w-0 flex-1">
-          <div className="h-4 w-2/3 rounded bg-surface2" />
-          <div className="mt-2 h-3 w-1/3 rounded bg-surface2" />
+          <div className="shimmer h-3 w-1/3 rounded bg-surface2" />
+          <div className="shimmer mt-2 h-4 w-2/3 rounded bg-surface2" />
+          <div className="shimmer mt-2 h-3 w-1/4 rounded bg-surface2" />
         </div>
       </div>
-      <div className="grid gap-2 border-t border-line p-4">
-        <div className="h-12 rounded-field bg-surface2" />
-        <div className="h-12 rounded-field bg-surface2" />
+      <div className="grid gap-2 p-4 sm:p-5">
+        <div className="shimmer h-14 rounded-field bg-surface2" />
+        <div className="shimmer h-14 rounded-field bg-surface2" />
+        <div className="shimmer h-14 rounded-field bg-surface2" />
       </div>
       <p className="sr-only" aria-live="polite">
         Reading the link…

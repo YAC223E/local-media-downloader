@@ -74,7 +74,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastCtx.Provider value={value}>
       {children}
       <div
-        className="pointer-events-none fixed inset-x-4 top-[calc(env(safe-area-inset-top)+76px)] z-50 flex flex-col gap-2 md:inset-x-auto md:bottom-6 md:right-6 md:top-auto md:w-[380px]"
+        className="pointer-events-none fixed inset-x-4 top-[calc(env(safe-area-inset-top)+72px)] z-50 flex flex-col gap-2 md:inset-x-auto md:bottom-6 md:right-6 md:top-auto md:w-[380px]"
         role="status"
         aria-live="polite"
       >
@@ -85,35 +85,33 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             onMouseLeave={() => resume(toast.id)}
             onFocusCapture={() => pause(toast.id)}
             onBlurCapture={() => resume(toast.id)}
-            className={cn(
-              "toast-in pointer-events-auto flex items-start gap-3 rounded-card border border-line bg-surface p-3.5 shadow-float",
-              "border-l-4",
-              toast.tone === "ok" && "border-l-go",
-              toast.tone === "err" && "border-l-stop",
-              toast.tone === "info" && "border-l-accent",
-            )}
+            className="toast-in pointer-events-auto flex items-start gap-3 rounded-card border border-line bg-surface p-3 shadow-float"
           >
-            <Icon
-              name={toast.tone === "ok" ? "check" : toast.tone === "err" ? "alert" : "info"}
-              size={19}
+            <span
               className={cn(
-                "mt-0.5 shrink-0",
-                toast.tone === "ok" && "text-go",
-                toast.tone === "err" && "text-stop",
-                toast.tone === "info" && "text-brand",
+                "mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-[8px]",
+                toast.tone === "ok" && "bg-gowash text-go",
+                toast.tone === "err" && "bg-stopwash text-stop",
+                toast.tone === "info" && "bg-accentwash text-brand",
               )}
-            />
-            <div className="min-w-0 flex-1">
-              <p className="text-[15px] font-semibold leading-snug text-ink">{toast.title}</p>
+            >
+              <Icon
+                name={toast.tone === "ok" ? "check" : toast.tone === "err" ? "alert" : "info"}
+                size={17}
+                strokeWidth={toast.tone === "ok" ? 2.3 : 1.9}
+              />
+            </span>
+            <div className="min-w-0 flex-1 pt-0.5">
+              <p className="text-[14px] font-semibold leading-snug text-ink">{toast.title}</p>
               {toast.body ? <p className="mt-0.5 text-[13px] leading-snug text-muted">{toast.body}</p> : null}
             </div>
             <button
               type="button"
               onClick={() => dismiss(toast.id)}
               aria-label="Dismiss notification"
-              className="pressable -mr-2 -mt-2 grid h-11 w-11 shrink-0 place-items-center rounded-[8px] text-muted hover:bg-surface2 hover:text-ink"
+              className="pressable -mr-1.5 -mt-1 grid h-11 w-11 shrink-0 place-items-center rounded-[8px] text-muted hover:bg-surface2 hover:text-ink"
             >
-              <Icon name="close" size={16} />
+              <Icon name="close" size={15} />
             </button>
           </div>
         ))}
